@@ -35,6 +35,8 @@ Here, I've imported the excel data set and necessary packages for analysis. I al
 # install.packages("reshape2")
 # install.packages("ggraph")
 #install.packages("kableExtra")
+
+#loading necessary packages
 library(varhandle)
 library(ggraph)
 library(igraph)
@@ -47,26 +49,34 @@ library(stopwords)
 library(wordcloud)
 library(reshape2)
 library(kableExtra)
+
+#importing dataset and DEI words list
 rios_data <- read_csv("RIOS Research - Course Source - Sheet1 2.csv")
 dei_keywords <- read_csv("SJEDI_words 2022-12-20 18_03_42.csv")
+
+#updating human error for one article
 rios_data$`Inclusive Teaching  included?`[12] = "No"
+
+#arranging years
 rios_data <- rios_data %>%
   arrange(desc(Year))
+
+# creating a new column article number, to number each article (most recent article: 286)
+rios_data$article_num <- c(nrow(rios_data):1)
 ```
 
 ```{r More Data Cleaning}
 # I've created a variable which contains diversity related words (words pulled from the keywords column) and then combined it with the `dei_keywords` dataframe I imported (Thank you Dr. Diaz-Eaton). I also added another column, which includes the article number for each row.
 
-diversity_related <- c("diversity", "bias", "confirmation bias", "cognitive bias", "social justice", "broader impacts", "racism", "identity", "equity", "inclusivity", "environmental justice", "inclusion", "belonging")
-
-#adding the vector above to the CSV dei_keywords
-for (x in 1:13){
-  dei_keywords[nrow(dei_keywords) + 1,] = diversity_related[x]
-}
-
-rios_data$article_num <- c(nrow(rios_data):1)
+# diversity_related <- c("diversity", "bias", "confirmation bias", "cognitive bias", "social justice", "broader impacts", "racism", "identity", "equity", "inclusivity", "environmental justice", "inclusion", "belonging")
+# 
+# #adding the vector above to the CSV dei_keywords
+# for (x in 1:13){
+#   dei_keywords[nrow(dei_keywords) + 1,] = diversity_related[x]
+# }
 
 ```
+
 
 Here, each word from the `Inlcusive Teaching Description` and `keyword themes` is "un-nested" into it's own row and any unnecessary punctuation, numbers and words are removed. I saved each of these in their own new dataframes for analysis.
 
@@ -90,44 +100,69 @@ rios_data_tokenizedit <- rios_data_tokenizedit %>%
   filter(!inclusive_teach_tokens %in% stopwords_vec) 
 
 #doing same thing as above but for keyword themes
-rios_data_tokenizedkt <- rios_data %>%
-  unnest_tokens(output = keyword_themes_tokens, input = `keyword themes`)
+# rios_data_tokenizedkt <- rios_data %>%
+#   unnest_tokens(output = keyword_themes_tokens, input = `keyword themes`)
 
 
 #removing all rows with any punctuation, digits, or "stopwords" (78 rows total)
-strings <- c("[:punct:]", "[:digit:]","\\(","\\)")
-stopwords_vec <- stopwords(language = "en")
+# strings <- c("[:punct:]", "[:digit:]","\\(","\\)")
+# stopwords_vec <- stopwords(language = "en")
 
 #removed ~777 rows
-rios_data_tokenizedkt <- rios_data_tokenizedkt %>%
-  filter(!str_detect(keyword_themes_tokens, paste(strings, collapse = "|")))
+# rios_data_tokenizedkt <- rios_data_tokenizedkt %>%
+#   filter(!str_detect(keyword_themes_tokens, paste(strings, collapse = "|")))
 
 #removed ~19,663 rows
-rios_data_tokenizedkt <- rios_data_tokenizedkt %>%
-  filter(!keyword_themes_tokens %in% stopwords_vec) 
+# rios_data_tokenizedkt <- rios_data_tokenizedkt %>%
+#   filter(!keyword_themes_tokens %in% stopwords_vec) 
 
 
 ```
 
-`dei_related` columns were created for each data frame, which says TRUE if that word (regarding the Inclusive Teaching Descriptions and the keyword themes) matches any word from the `dei_keywords` dataframe.
+Based on the work I did above, I transformed the data frame with all of the distinct 'cleaned' words in the inclusive teaching section into a csv, and manually verified if all 4,464 words (looked at the context of the words as required) should be counted as JEDI! After manual verification, I import it back into R.
+
+```{r}
+
+
+#allwords <- unique(rios_data_tokenizedit$inclusive_teach_tokens)
+#uniquedeirelated <- sapply(allwords, function(x) any(sapply(dei_keywords, str_detect, string = x)))
+
+#uniquedei <- cbind(allwords,uniquedeirelated)
+
+#write_csv(as.data.frame(uniquedeirelated), "DEIRelated.csv")
+
+
+#importing manually verified list of JEDI words 
+JEDI_keywords_df <- read_csv("cleanedITwords - cleanedITwords.csv")
+
+JEDI_keywords <- JEDI_keywords_df %>% 
+  filter(Carrie == "JEDI") %>% 
+  select(1)
+  
+  
+```
+
+
+
+`dei_related` columns were created for each data frame, which says TRUE if that word (regarding the Inclusive Teaching Descriptions and the keyword themes) matches any word from the `JEDI_keywords` dataframe.
 
 ```{r EDA prep}
 
 #creating a DEI related column
 rios_data_tokenizedit$dei_relatedit = NA
 
-rios_data_tokenizedkt$dei_relatedkt = NA
+# rios_data_tokenizedkt$dei_relatedkt = NA
 
-rios_data_tokenizedit$dei_relatedit <- sapply(rios_data_tokenizedit$inclusive_teach_tokens, function(x) any(sapply(dei_keywords, str_detect, string = x)))
+rios_data_tokenizedit$dei_relatedit <- sapply(rios_data_tokenizedit$inclusive_teach_tokens, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
 
-rios_data_tokenizedkt$dei_relatedkt <- sapply(rios_data_tokenizedkt$keyword_themes_tokens, function(x) any(sapply(dei_keywords, str_detect, string = x)))
+# rios_data_tokenizedkt$dei_relatedkt <- sapply(rios_data_tokenizedkt$keyword_themes_tokens, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
 
 #save(dei_keywords, file = "dei_keywords.csv")
 #saveRDS(rios_data_tokenized, file = "rios_data_tokenized.rds")
 
 #removing the unnnecessary columns
 rios_data_tokenizedit <- rios_data_tokenizedit[,-c(9:13)]
-rios_data_tokenizedkt <- rios_data_tokenizedkt[,-c(9:13)]
+# rios_data_tokenizedkt <- rios_data_tokenizedkt[,-c(9:13)]
 
 ```
 
@@ -203,6 +238,8 @@ Word clouds are another way of visualizing which words are being used the most. 
 
 ```{r V4, warning = FALSE}
 
+#ASK CARRIE WHY DOES WORDCLOUD LOOK SO 'EVEN'
+
 rios_data_tokenizedit %>%
   filter(dei_relatedit == "TRUE") %>%
   count(inclusive_teach_tokens, sort = TRUE) %>% 
@@ -237,7 +274,7 @@ rios_data_token2it <- rios_data_token2it %>%
 rios_data_token2it$dei_related = NA
 
 
-rios_data_token2it$dei_related <- sapply(rios_data_token2it$it_tokens_2w, function(x) any(sapply(dei_keywords, str_detect, string = x)))
+rios_data_token2it$dei_related <- sapply(rios_data_token2it$it_tokens_2w, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
 
 
 #removing the unnnecessary columns/rows [doesn't make sense or not related to DEI] 
@@ -250,10 +287,19 @@ unnecessary <- c("individually table", "individual investigators", "individual m
 rios_data_token2it <- rios_data_token2it %>%
   filter(!str_detect(it_tokens_2w, paste(unnecessary, collapse = "|")))
 
+#for review (Naz?)
+all2words <- as.data.frame(unique(rios_data_token2it$it_tokens_2w))
+all2words$dei_related = NA
+all2words$dei_related <- sapply(all2words$`unique(rios_data_token2it$it_tokens_2w)`, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
+write_csv(all2words, "2DEIRelated.csv")
+
+
 #most common DEI words
 rios_2w_count <- rios_data_token2it %>%
   filter(dei_related == "TRUE") %>%
   count(it_tokens_2w, sort = TRUE) 
+
+write_csv(rios_2w_count, "rios2wcount.csv")
 
 
 #graph of that 
@@ -310,6 +356,13 @@ rios_data_token3it <- rios_data_token3it %>%
   filter(!str_detect(it_tokens_3w, paste(unnecessary2, collapse = "|")))
 
 
+#for review (Naz?)
+all3words <- as.data.frame(unique(rios_data_token3it$it_tokens_3w))
+all3words$dei_related = NA
+all3words$dei_related <- sapply(all3words$`unique(rios_data_token3it$it_tokens_3w)`, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
+write_csv(all3words, "3DEIRelated.csv")
+
+
 #graph of the most common
 rios_data_token3it %>%
   filter(dei_related == "TRUE") %>%
@@ -331,27 +384,34 @@ This is a bar chart that looks more in depth into the frequency of words being u
 ```{r}
 # Below is just the code to print all 9 years into one table
 
-# it_word_counts %>% 
-#   # filter(Year != 2018) %>% 
-#   filter(n > 1) %>% #41.58 of data
-#   ggplot(aes(inclusive_teach_tokens, n)) + 
-#   geom_col() + 
-#  #geom_text(aes(label = inclusive_teach_tokens), vjust = -0.5, size = 1, nudge_y = 1) +
-#   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-#   facet_wrap(~Year, ncol = 2) +
-#   ylim(0,33) +
-#   labs(title = "(DEI Related) Word Frequency Over Time", x = "(DEI Related) Word", y = "Word Count in Inclusive Teaching Text") +
-#    ## reduce spacing between labels and bars
-#   scale_x_discrete(expand = c(.01, .01)) +
-#   scale_fill_identity(guide = "none") +
-#   ## get rid of all elements except y axis labels + adjust plot margin +
-#   theme(axis.text.y = element_text(size = 14, hjust = 1, family = "Fira Sans"),
-#         plot.margin = margin(rep(15, 4)))
+#saving for visuals on word counts, etc
+it_word_counts <- rios_data_tokenizedit %>%
+  filter(dei_relatedit == "TRUE") %>%
+  group_by(Year) %>%
+  count(inclusive_teach_tokens, sort = TRUE)
 
 
-# it_word_counts %>% 
-#   ungroup(Year) %>% 
-#   count(n) %>% 
+it_word_counts %>%
+  # filter(Year != 2018) %>%
+  filter(n > 1) %>% #41.58 of data
+  ggplot(aes(inclusive_teach_tokens, n)) +
+  geom_col() +
+ #geom_text(aes(label = inclusive_teach_tokens), vjust = -0.5, size = 1, nudge_y = 1) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~Year, ncol = 2) +
+  ylim(0,33) +
+  labs(title = "(DEI Related) Word Frequency Over Time", x = "(DEI Related) Word", y = "Word Count in Inclusive Teaching Text") +
+   ## reduce spacing between labels and bars
+  scale_x_discrete(expand = c(.01, .01)) +
+  scale_fill_identity(guide = "none") +
+  ## get rid of all elements except y axis labels + adjust plot margin +
+  theme(axis.text.y = element_text(size = 14, hjust = 1, family = "Fira Sans"),
+        plot.margin = margin(rep(15, 4)))
+
+
+# it_word_counts %>%
+#   ungroup(Year) %>%
+#   count(n) %>%
 #   mutate(percent = (nn/416)*100)
   
 
@@ -361,12 +421,6 @@ This is a bar chart that looks more in depth into the frequency of words being u
 ### 2014
 
 ```{r V2 2014, warning=FALSE}
-
-#saving for visuals on word counts, etc
-it_word_counts <- rios_data_tokenizedit %>%
-  filter(dei_relatedit == "TRUE") %>%
-  group_by(Year) %>%
-  count(inclusive_teach_tokens, sort = TRUE)
 
 it_word_counts %>%
   filter(Year == 2014) %>%
@@ -1002,7 +1056,7 @@ totaldeiyear %>%
   mutate(ratio = totaldeiy/totaly) %>%
   ggplot(aes(Year, ratio)) +
   geom_line() +
-  ylim(0,0.053) +
+  #ylim(0,0.053) +
   labs(y = "Ratio", title = "The Ratio of DEI Related Words to Total Words By Year", subtitle = "(in the 'Inclusive Teaching' Section)")
 ```
  
