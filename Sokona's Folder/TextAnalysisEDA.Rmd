@@ -256,7 +256,6 @@ The tables and visuals above give us an idea of how often are DEI Words used and
 
 ```{r 2-gram word analysis prep}
 
-
 rios_data_token2it <- rios_data %>%
   unnest_tokens(it_tokens_2w, `Inclusive Teaching Description`, token = "ngrams", n = 2)  %>%
   separate(it_tokens_2w, c("word1", "word2"), sep = " ")
@@ -269,38 +268,54 @@ rios_data_token2it <- rios_data_token2it %>%
 rios_data_token2it <- rios_data_token2it %>%
   filter(!str_detect(it_tokens_2w, paste(strings, collapse = "|")))
 
+# code to print most common DEI 2word phrases for review
+
+# #for review (Naz?)
+# all2words <- as.data.frame(unique(rios_data_token2it$it_tokens_2w))
+# all2words$dei_related = NA
+# all2words$dei_related <- sapply(all2words$`unique(rios_data_token2it$it_tokens_2w)`, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
+# write_csv(all2words, "2DEIRelated.csv")
+# 
+# 
+# #most common DEI words
+# rios_2w_count <- rios_data_token2it %>%
+#   filter(dei_related == "TRUE") %>%
+#   count(it_tokens_2w, sort = TRUE) 
+# 
+# write_csv(rios_2w_count, "rios2wcount.csv")
 
 #creating a DEI related column
 rios_data_token2it$dei_related = NA
 
 
-rios_data_token2it$dei_related <- sapply(rios_data_token2it$it_tokens_2w, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
+#importing manually verified list of JEDI 2 word phrases 
+JEDI_2keywords_df <- read_csv("cleanedIT2words.csv")
+
+#filtering words that haven't been checked and aren't JEDI
+JEDI_2keywords <- JEDI_2keywords_df %>% 
+  filter(JEDI_2keywords_df$...5 != "unsure" | is.na(JEDI_2keywords_df$...5)) %>% 
+  filter(...3 == "JEDI") %>% 
+  select(1)
+  
+
+
+rios_data_token2it$dei_related <- sapply(rios_data_token2it$it_tokens_2w, function(x) any(sapply(JEDI_2keywords, str_detect, string = x)))
 
 
 #removing the unnnecessary columns/rows [doesn't make sense or not related to DEI] 
 #however keep in mind, in the context of a sentence it probably make senses, so i could be removing some important words
 
-rios_data_token2it <- rios_data_token2it[,-c(9:13)]
+# rios_data_token2it <- rios_data_token2it[,-c(9:13)]
+# 
+# unnecessary <- c("individually table", "individual investigators", "individual module", "individual noninteractive", "individual pre", "individual clicker", "inclusion another", "inclusion additionally", "identify species", "identify primer", "identify possible", "identified alternatively", "identification", "ideas individual", "group divide", "general inclusive", "bird identification", "yet inclusive", "variants identified", "teachers identify", "skills perspectives", "sheet individually", "residential birds", "radiation incidents", "regular individually", "pipeline cure", "plant communities", "popular culture", "perspective remind", "perspectives anonymous", "four individuals", "first collaborative", "find identify", "ever identified", "evenly divides", "ethnic economic", "ethnic given", "equity public", "england individual", "engaging final", "diverse face", "diverse natural", "diverse mixed", "direct connection", "disabilities benefit", "data individuals", "data individually", "communities due", "collaborative yet", "collaborative easing", "collaboration using", "collaboration throughout", "class individual", "biodiversiy lab", "biodiversity losses", "backgrounds may", "backgrounds find", "backgrounds furthermore", "backgrounds therefore", "area identified", "answer individually", "agricultural sciences", "ability train", "ability moreover", "abilities match", "questions individually", "individuals turn", "individuals since", "communicate collaborate", "backgrounds throughout", "access see", "de identified", "efficacy identity", "individualactors may")
 
-unnecessary <- c("individually table", "individual investigators", "individual module", "individual noninteractive", "individual pre", "individual clicker", "inclusion another", "inclusion additionally", "identify species", "identify primer", "identify possible", "identified alternatively", "identification", "ideas individual", "group divide", "general inclusive", "bird identification", "yet inclusive", "variants identified", "teachers identify", "skills perspectives", "sheet individually", "residential birds", "radiation incidents", "regular individually", "pipeline cure", "plant communities", "popular culture", "perspective remind", "perspectives anonymous", "four individuals", "first collaborative", "find identify", "ever identified", "evenly divides", "ethnic economic", "ethnic given", "equity public", "england individual", "engaging final", "diverse face", "diverse natural", "diverse mixed", "direct connection", "disabilities benefit", "data individuals", "data individually", "communities due", "collaborative yet", "collaborative easing", "collaboration using", "collaboration throughout", "class individual", "biodiversiy lab", "biodiversity losses", "backgrounds may", "backgrounds find", "backgrounds furthermore", "backgrounds therefore", "area identified", "answer individually", "agricultural sciences", "ability train", "ability moreover", "abilities match", "questions individually", "individuals turn", "individuals since", "communicate collaborate", "backgrounds throughout", "access see", "de identified", "efficacy identity", "individualactors may")
-
-rios_data_token2it <- rios_data_token2it %>%
-  filter(!str_detect(it_tokens_2w, paste(unnecessary, collapse = "|")))
-
-#for review (Naz?)
-all2words <- as.data.frame(unique(rios_data_token2it$it_tokens_2w))
-all2words$dei_related = NA
-all2words$dei_related <- sapply(all2words$`unique(rios_data_token2it$it_tokens_2w)`, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
-write_csv(all2words, "2DEIRelated.csv")
-
+# rios_data_token2it <- rios_data_token2it %>%
+#   filter(!str_detect(it_tokens_2w, paste(unnecessary, collapse = "|")))
 
 #most common DEI words
 rios_2w_count <- rios_data_token2it %>%
   filter(dei_related == "TRUE") %>%
-  count(it_tokens_2w, sort = TRUE) 
-
-write_csv(rios_2w_count, "rios2wcount.csv")
-
+  count(it_tokens_2w, sort = TRUE)
 
 #graph of that 
 rios_2w_count %>%
@@ -333,6 +348,20 @@ rios_data_token3it <- rios_data_token3it %>%
 
 rios_data_token3it <- rios_data_token3it %>%
   filter(!str_detect(it_tokens_3w, paste(strings, collapse = "|")))
+
+all3words <- as.data.frame(unique(rios_data_token3it$it_tokens_3w))
+all3words$dei_related = NA
+all3words$dei_related <- sapply(all3words$`unique(rios_data_token3it$it_tokens_3w)`, function(x) any(sapply(JEDI_2keywords, str_detect, string = x)))
+#write_csv(all2words, "2DEIRelated.csv")
+
+
+#most common DEI words
+all3words <- all3words %>%
+  filter(dei_related == "TRUE") %>%
+  count(`unique(rios_data_token3it$it_tokens_3w)`, sort = TRUE)
+
+write_csv(all3words, "all3words.csv")
+
 
 
 #creating a DEI related column
