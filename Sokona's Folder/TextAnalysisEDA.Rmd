@@ -175,14 +175,18 @@ The boxplot below visualizes the word count of the Inclusive Teaching Section ov
 ```{r V1}
 
 
+#facotring years so i can reorder from oldest to most recent
 rios_data$Year <- factor(rios_data$Year , levels=c("2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014"))
+
+#coloring groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
 
   boxplot(`Word Count of Inclusive Teaching?`~ Year,
           data=rios_data,
           main="Word Count of Inclusive Teaching Sections Over Time",
           ylab="Year",
           xlab="Word count of Inclusive Teaching Section",
-          horizontal = TRUE)
+          horizontal = TRUE, 
+          col = c("#005AB5", "#005AB5", "#005AB5", "#005AB5", "#DC3220","#DC3220", "#DC3220", "#DC3220", "#DC3220"))
   
   
 rios_data$Year <-  unfactor(rios_data$Year)
@@ -211,6 +215,49 @@ rios_data %>%
   kable_minimal()
 
 
+```
+
+
+
+```{r}
+#CREATING A BAR PLOT OF THE AVERAGE WORD COUNT OF THE TWO GROUPS
+
+rios_data <- rios_data %>% 
+  mutate(`Group Year` = case_when(
+    as.numeric(Year) >= 5 ~ "2014 - 2018",
+    as.numeric(Year) < 5 ~ "2019 - 2022"
+  )) #creating column that groups based on the shift (2014-2018 and 2019-2022), used 5 because it's factored and 2018 = level 5
+
+test <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Group Year`,
+         data = rios_data,
+         subset = `Group Year` %in% c("2014 - 2018", "2019 - 2022"))
+
+riosdata_before18 <- rios_data %>% 
+  filter(`Group Year` == "2014 - 2018")
+
+riosdata_after18 <- rios_data %>% 
+  filter(`Group Year` == "2019 - 2022")
+
+test_before18 <- t.test(x = riosdata_before18$`Word Count of Inclusive Teaching?`)
+test_after18 <- t.test(x = riosdata_after18$`Word Count of Inclusive Teaching?`)
+
+test #p-value = 1.557e-10, confidence interval:  -126.37537  -68.78427, df = 254?!
+test_before18 #p-value < 2.2e-16, confidence interval:  102.6193 134.3544, df = 75...
+test_after18 #p-value < 2.2e-16, confidence interval: 191.8702 240.2632, df = 179...
+
+rios_data %>%  
+  group_by(`Group Year`) %>% 
+  summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), #calculating avg wrd count for each group
+            n = n(),
+            sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% #calculating standard deviation for each group (for confidence intervals) %>% 
+  mutate(se = sd/sqrt(n), #calculating the standard error
+         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% #calculating standard error * value of the t-distribution for 0.5
+  ggplot(aes(`Group Year`, Avg_Wrd_Ct, fill = `Group Year`)) +
+  geom_col() + 
+  labs(title = "Average Word Count of Inclusive Teaching Section", subtitle = "Before and After 2018", x = "Year", y = "Average Word Count") + 
+  scale_fill_manual(values = c("#005AB5", "#DC3220")) + #manually coloring groups (color blind safe colors) 
+  geom_errorbar(aes(x = `Group Year`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4)
+  
 ```
 
 
