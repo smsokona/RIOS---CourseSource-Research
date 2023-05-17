@@ -49,6 +49,7 @@ library(stopwords)
 library(wordcloud)
 library(reshape2)
 library(kableExtra)
+library(SnowballC)
 
 #importing dataset and DEI words list
 rios_data <- read_csv("RIOS Research - Course Source - Sheet1 2.csv")
@@ -187,7 +188,10 @@ rios_data$Year <- factor(rios_data$Year , levels=c("2022", "2021", "2020", "2019
           xlab="Word count of Inclusive Teaching Section",
           horizontal = TRUE, 
           col = c("#005AB5", "#005AB5", "#005AB5", "#005AB5", "#DC3220","#DC3220", "#DC3220", "#DC3220", "#DC3220"))
-  
+  abline(v = 118.4868, col = "#DC3220", lty = "solid", lwd = 3)
+  abline(v = 216.0667, col = "#005AB5",lty = "solid", lwd = 3)
+  legend("topright", inset=.02, title="Average Word Count",
+   c("for 2014 - 2018","for 2019 - 2022"), fill=c("#DC3220", "#005AB5"), horiz=TRUE, cex=0.8)
   
 rios_data$Year <-  unfactor(rios_data$Year)
 
@@ -228,22 +232,23 @@ rios_data <- rios_data %>%
     as.numeric(Year) < 5 ~ "2019 - 2022"
   )) #creating column that groups based on the shift (2014-2018 and 2019-2022), used 5 because it's factored and 2018 = level 5
 
-test <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Group Year`,
-         data = rios_data,
-         subset = `Group Year` %in% c("2014 - 2018", "2019 - 2022"))
-
-riosdata_before18 <- rios_data %>% 
-  filter(`Group Year` == "2014 - 2018")
-
-riosdata_after18 <- rios_data %>% 
-  filter(`Group Year` == "2019 - 2022")
-
-test_before18 <- t.test(x = riosdata_before18$`Word Count of Inclusive Teaching?`)
-test_after18 <- t.test(x = riosdata_after18$`Word Count of Inclusive Teaching?`)
-
-test #p-value = 1.557e-10, confidence interval:  -126.37537  -68.78427, df = 254?!
-test_before18 #p-value < 2.2e-16, confidence interval:  102.6193 134.3544, df = 75...
-test_after18 #p-value < 2.2e-16, confidence interval: 191.8702 240.2632, df = 179...
+# test <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Group Year`,
+#          data = rios_data,
+#          subset = `Group Year` %in% c("2014 - 2018", "2019 - 2022"))
+# 
+# test #p-value = 1.557e-10, confidence interval:  -126.37537  -68.78427, df = 254?!
+# 
+# riosdata_before18 <- rios_data %>% 
+#   filter(`Group Year` == "2014 - 2018")
+# 
+# riosdata_after18 <- rios_data %>% 
+#   filter(`Group Year` == "2019 - 2022")
+# 
+# test_before18 <- t.test(x = riosdata_before18$`Word Count of Inclusive Teaching?`)
+# test_after18 <- t.test(x = riosdata_after18$`Word Count of Inclusive Teaching?`)
+# 
+# test_before18 #p-value < 2.2e-16, confidence interval:  102.6193 134.3544, df = 75...
+# test_after18 #p-value < 2.2e-16, confidence interval: 191.8702 240.2632, df = 179...
 
 rios_data %>%  
   group_by(`Group Year`) %>% 
@@ -277,6 +282,25 @@ rios_data_tokenizedit %>%
   filter(dei_relatedit == "TRUE") %>%
   count(inclusive_teach_tokens, sort = TRUE)  
 
+# #creating stemmed DEI word list
+# DEI_related <- rios_data_tokenizedit %>% 
+#   filter(dei_relatedit == "TRUE") %>% 
+#   select(10) #CREATING DF OF DEI INCLUSIVE TEACH TOKENS
+
+#creating column of stemmed tokens
+rios_data_tokenizedit <- rios_data_tokenizedit %>% 
+  mutate(stem = wordStem(rios_data_tokenizedit$inclusive_teach_tokens, language = "en")) %>% 
+  rename("inclusive_tokens_stem" = "stem")
+
+#creating stemmed JEDI list
+stem_jedi <- JEDI_keywords %>% 
+  mutate(stem = wordStem(`allwords`, language = "en")) %>% 
+  count(stem, sort = TRUE)
+
+#stem_token_it$dei_related <- sapply(stem_token_it$stem, function(x) any(sapply(JEDI_keywords, str_detect, string = x)))
+
+
+
 ```
 
 ## Word Cloud
@@ -285,12 +309,18 @@ Word clouds are another way of visualizing which words are being used the most. 
 
 ```{r V4, warning = FALSE}
 
-#ASK CARRIE WHY DOES WORDCLOUD LOOK SO 'EVEN'
+#ORIGINAL
 
 rios_data_tokenizedit %>%
   filter(dei_relatedit == "TRUE") %>%
-  count(inclusive_teach_tokens, sort = TRUE) %>% 
-  with(wordcloud(inclusive_teach_tokens, n))
+  count(inclusive_teach_tokens, sort = TRUE) 
+
+#STEMMED AND LOGGED WORD CLOUD
+rios_data_tokenizedit %>%
+  filter(dei_relatedit == "TRUE") %>%
+  count(inclusive_tokens_stem, sort = TRUE) %>% 
+  mutate(log_n = log(n)) %>% #since there are so many words and it's very skewed i'm log scaling the count and then visualizing
+  with(wordcloud(inclusive_tokens_stem, log_n))
 
 ```
 
@@ -469,8 +499,12 @@ it_word_counts <- rios_data_tokenizedit %>%
   group_by(Year) %>%
   count(inclusive_teach_tokens, sort = TRUE)
 
+it_stem_word_counts <- rios_data_tokenizedit %>%
+  filter(dei_relatedit == "TRUE") %>%
+  group_by(Year) %>%
+  count(inclusive_tokens_stem, sort = TRUE)
 
-
+#original
 it_word_counts %>%
   # filter(Year != 2018) %>%
   filter(n > 1) %>% #41.58 of data
@@ -489,6 +523,23 @@ it_word_counts %>%
         plot.margin = margin(rep(15, 4)))
 
 
+it_stem_word_counts %>%
+  # filter(Year != 2018) %>%
+  filter(n > 1) %>% #41.58 of data
+  ggplot(aes(inclusive_tokens_stem, n)) +
+  geom_col() +
+ #geom_text(aes(label = inclusive_teach_tokens), vjust = -0.5, size = 1, nudge_y = 1) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~Year, ncol = 2) +
+  ylim(0,33) +
+  labs(title = "(DEI Related) Stemmed Word Frequency Over Time", x = "(DEI Related) Word", y = "Word Count in Inclusive Teaching Text") +
+   ## reduce spacing between labels and bars
+  scale_x_discrete(expand = c(.01, .01)) +
+  scale_fill_identity(guide = "none") +
+  ## get rid of all elements except y axis labels + adjust plot margin +
+  theme(axis.text.y = element_text(size = 7, hjust = 1, family = "Fira Sans"),
+        plot.margin = margin(rep(15, 4)))
+
 # it_word_counts %>%
 #   ungroup(Year) %>%
 #   count(n) %>%
@@ -496,7 +547,6 @@ it_word_counts %>%
   
 
 ```
-
 
 ### 2014
 
@@ -610,6 +660,127 @@ it_word_counts %>%
   filter(Year == 2022) %>%
   head(20) %>%
   ggplot(aes(inclusive_teach_tokens, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+##  {-}
+
+## In Depth Bar Chart of _Stemmed_ Word Count By Year {.tabset}
+
+### 2014
+
+```{r  stem2014, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2014) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+### 2015
+
+```{r stem2015, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2015) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+### 2016
+
+```{r stem2016, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2016) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+### 2017
+
+```{r stem2017, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2017) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+### 2018
+
+```{r stem2018, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2018) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+### 2019
+
+```{r stem2019, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2019) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+### 2020
+
+```{r stem2020, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2020) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+### 2021
+
+```{r stem2021, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2021) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylim(0,33)
+```
+
+### 2022
+
+```{r stem2022, warning=FALSE}
+
+it_stem_word_counts %>%
+  filter(Year == 2022) %>%
+  head(20) %>%
+  ggplot(aes(inclusive_tokens_stem, n)) + 
   geom_bar(stat = "identity", show.legend = FALSE) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   ylim(0,33)
