@@ -13,6 +13,9 @@ My name is Sokona Mangane and I'm from Brooklyn, NY. I'm a senior at Bates Colle
 
 ADD ROLE
 
+
+DO NOT KNIT SO THAT YOU SEE CODE ON THE HTML
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
@@ -338,7 +341,6 @@ The tables and visuals above give us an idea of how often are DEI Words used and
 
 ```{r 2-gram word analysis}
 
-
 #most common DEI words
 rios_2w_count <- rios_data_token2it %>%
   filter(dei_related == "TRUE") %>%
@@ -385,25 +387,32 @@ rios_data_token3it %>%
 This is a bar chart that looks more in depth into the frequency of words being used, each year. You can click on each tab to see to compare. Although 2014-2016 have higher proportions of DEI words, from 2018-2022, the top 20 DEI related words are used more frequently, specifically the words "diverse", "diversity", "engage", "individual", and "inclusive" are being used more. We can see that the number and diversity of words increases (there are decreases in 2018, and 2021) each year. 
 
 ```{r}
-# Below is just the code to print all 9 years into one table
 
+# return top 10 distinct words in each year
+top_10_distinct <- it_word_counts %>% 
+  slice(1:10) %>% # return top 10 word counts for each year
+  ungroup(Year) %>% # ungroup by year
+  distinct(inclusive_teach_tokens) # return distinct words across the df
 
-#original
+# transpose and convert to vector
+top_10_distinct <- c(t(top_10_distinct))
+
+# original
 it_word_counts %>%
-  # filter(Year != 2018) %>%
-  filter(n > 1) %>% #41.58 of data
-  ggplot(aes(inclusive_teach_tokens, n)) +
+  filter(inclusive_teach_tokens %in% top_10_distinct) %>% # using only 14.17% DEI related words in dataset
+  mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, log_n)) +
   geom_col() +
  #geom_text(aes(label = inclusive_teach_tokens), vjust = -0.5, size = 1, nudge_y = 1) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~Year, ncol = 2) +
-  ylim(0,355) +
-  labs(title = "(DEI Related) Word Frequency Over Time", x = "(DEI Related) Word", y = "Word Count in Inclusive Teaching Text") +
+  facet_wrap(~Year, nrow = 2) +
+  #ylim(0,60) +
+  labs(title = "(DEI Related) Word Frequency Over Time", x = "(DEI Related) Word", y = "(Logged) Word Count in Inclusive Teaching Text") +
    ## reduce spacing between labels and bars
   scale_x_discrete(expand = c(.01, .01)) +
   scale_fill_identity(guide = "none") +
   ## get rid of all elements except y axis labels + adjust plot margin +
-  theme(axis.text.y = element_text(size = 14, hjust = 1, family = "Fira Sans"),
+  theme(axis.text.y = element_text(size = 7, hjust = 1, family = "Fira Sans"),
         plot.margin = margin(rep(15, 4)))
 
 

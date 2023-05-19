@@ -1,0 +1,312 @@
+---
+title: "RIOS Research - Inclusive Teaching Text Analysis"
+author: "Sokona Mangane"
+date: "2022-12-14"
+output:
+  html_document:
+    code_folding: hide
+---
+
+# Introduction
+
+My name is Sokona Mangane and I'm from Brooklyn, NY. I'm a senior at Bates College, majoring in Mathematics, and minoring in Digital and Computational Studies. In the the data cleaning folder, I created dataframes which identifies each word in the inclusive teaching section and if they should be considered JEDI. Below, I import the data that I cleaned to analyze the word frequency of DEI related words and how they change over time. I create tables, box plots, bar plots, and line graphs. My colleague, Yuhao does...
+
+# Setup
+
+Below I specify global options that I want for all of my code chunks.
+
+```{r setup-chunk, include=FALSE}
+knitr::opts_chunk$set(dev = "png", # save all images as png
+                      dpi = 300, # save the PNGs at a nice high quality please, at 300 pi
+                      cache = TRUE, 
+                      warning = FALSE, # doesn't print warnings 
+                      message = FALSE) # doesn't print messages
+```
+
+I import the necessary packages (same code in the Data Cleaning RMD).
+
+```{r install and load packages, message=FALSE, warning=FALSE}
+
+# store string containing all required packages
+my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr")
+
+# store all installed packages
+ya_installed <- library()$results[,1]
+
+# check whether required packages are already installed and grab only those that still need installation
+need_install<-my_packages[!(my_packages %in% ya_installed)]
+
+# install required packages
+lapply(need_install, install.packages, character.only = TRUE)
+
+#similar process as above, but loading the packages
+
+# store all installed packages
+ya_loaded <- (.packages())
+
+# check whether required packages are already installed and grab only those that still need installation
+need_load<-my_packages[!(my_packages %in% ya_loaded)]
+
+# load required packages
+lapply(need_load, require, character.only = TRUE)
+
+```
+
+I import the required datasets for analysis, which were exported from the Data Cleaning folder.
+
+```{r import data, message=FALSE, warning=FALSE}
+
+# import the datasets which were exported from the Data Cleaning folder
+
+#original cleaned dataset
+rios_data <- read_csv("/cloud/project/Data Analysis/Data/rios_data.csv")
+
+# cleaned tokenized dataset
+rios_data_tokenized <- read_csv("/cloud/project/Data Analysis/Data/rios_data_tokenized.csv") 
+
+# cleaned tokenized dataset for two word phrases
+rios_data_tokenized2 <- read_csv("/cloud/project/Data Analysis/Data/rios_data_tokenized2.csv")
+
+# cleaned tokenized dataset for three word phrases
+rios_data_tokenized3 <- read_csv("/cloud/project/Data Analysis/Data/rios_data_tokenized3.csv")
+
+#cleaned dataset of words counts, grouped by year
+dei_word_counts <- read_csv("/cloud/project/Data Analysis/Data/dei_word_counts.csv")
+
+```
+
+# Exploratory Data Analysis: Word Count
+
+## Word Count of Inclusive Teaching Text Over Time Box Plot
+
+The boxplot below visualizes the word count of the Inclusive Teaching Section over time. The Word count increases in the 2019-2022 group compared to the years prior, and we also start to see more outliers. Overall, since the creation of Course Source, the word count of the Inclusive Teaching Section has increased. 
+
+```{r wrd ct boxplot, dev = "png"}
+
+# factor years to reorder from oldest to most recent (to be consistent with table below)
+rios_data$Year <- factor(rios_data$Year , levels=c("2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014"))
+
+# create box plot
+boxplot(`Word Count of Inclusive Teaching?`~ Year,
+        data=rios_data,
+        main="Word Count of Inclusive Teaching Sections Over Time",
+        ylab="Year",
+        xlab="Word count of Inclusive Teaching Section",
+        horizontal = TRUE, 
+        # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
+        col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"))
+  
+# color and impose horizontal line of 2014 - 2018 group average wrd ct
+abline(v = 118.4868, col = "#b2df8a", lty = "solid", lwd = 3)
+
+# color and impose horizontal line of 2019 - 2022 group average wrd ct
+abline(v = 216.0667, col = "#1f78b4",lty = "solid", lwd = 3)
+  
+# impose legend which explain horizontal lines
+legend("topright", inset=.02, title="Average Word Count", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=TRUE, cex=0.8)
+  
+# unfactor years
+rios_data$Year <-  unfactor(rios_data$Year)
+
+#png("/cloud/project/Final Images/Word Count Boxplot")
+
+```
+
+Presented below is an in-depth look at what's visualized above.
+
+```{r wrd ct skim table, dev='png'}
+
+# create skim() table
+rios_data %>% 
+  # group by year
+  group_by(Year) %>% 
+  # present an overview only on the 'word count' column
+  skim(starts_with("Word Count")) %>% 
+  select(3,4,6:13)  %>% 
+  # round the mean and sd columns; calculate the variance
+  mutate(numeric.mean = round(numeric.mean, digits = 2), numeric.sd = round(numeric.sd, digits = 2), variance = (numeric.sd)^2) %>% 
+  #rename all columns
+  rename("Mean" = "numeric.mean",
+         "SD" = "numeric.sd",
+         "Variance" = "variance",
+         "Min" = "numeric.p0",
+         "25 Q" = "numeric.p25",
+         "Median" = "numeric.p50",
+         "75 Q" = "numeric.p75",
+         "Max" = "numeric.p100",
+         "Histogram" = "numeric.hist") %>% 
+  #turn this table into a nicely formatted table
+  kable() %>% 
+  kable_minimal()
+
+```
+
+To more clearly see the shift before and after 2018, I create a plot of the average word count comparing the word count before and after 2018. I also conduct a one-sample t-test. 
+
+```{r avg. wrd ct bar plot by group year}
+
+# conduct a one sample t-test
+# testbygroupyr <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Group Year`, data = rios_data)
+# 
+# print
+# testbygroupyr #p-value = 1.557e-10, confidence interval:  -126.37537  -68.78427, df = 254?!
+
+# create bar plot
+rios_data %>% 
+  group_by(`Group Year`) %>% 
+  # calculate avg. wrd ct, length, and standard deviation for each group year
+  summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), 
+            n = n(),
+            sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% 
+  # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
+  mutate(se = sd/sqrt(n), 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% 
+  ggplot(aes(`Group Year`, Avg_Wrd_Ct, fill = `Group Year`)) +
+  geom_col() + 
+  labs(title = "Average Word Count of Inclusive Teaching Section", subtitle = "Before and After 2018", x = "Year", y = "Average Word Count") + 
+  # manually color groups (color blind safe colors)
+  scale_fill_manual(values = c("#b2df8a", "#1f78b4")) + 
+  # create confidence intervals 
+  geom_errorbar(aes(x = `Group Year`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4)
+  
+```
+
+Like above, I create a plot of the average word count comparing the word count for articles which include authors that attended CourseSource workshops and those that didn't. I also conduct a one-sample t-test. 
+
+```{r avg. wrd ct bar plot by workshop attendance}
+
+# conduct a one sample t-test
+testbyattendance <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Attended Workshop?`, data = rios_data)
+ 
+# print
+testbyattendance #p-value = 0.01227, confidence interval (difference btw. means):  -140.73083  -18.08968, df = 46.607
+
+# create bar plot
+rios_data %>% 
+  group_by(`Attended Workshop?`) %>% 
+  # calculate avg. wrd ct, length, and standard deviation for each group
+  summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), 
+            n = n(),
+            sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% 
+  # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
+  mutate(se = sd/sqrt(n), 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% 
+  ggplot(aes(`Attended Workshop?`, Avg_Wrd_Ct, fill = `Attended Workshop?`)) +
+  geom_col() + 
+  labs(title = "Average Word Count of Inclusive Teaching Section", subtitle = "By Attendance Type", x = "Attendance Type", y = "Average Word Count") + 
+  # manually color groups (color blind safe colors) 
+  scale_fill_manual(values = c("#b2df8a", "#1f78b4")) + 
+  # create confidence intervals 
+  geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4)
+  
+```
+
+## Common DEI Phrases
+
+### 2 words
+
+```{r 2-gram word analysis}
+
+#most common DEI words (ADD TO FINAL FIGURES FOLDER ON GITHUB)
+rios_2w_count <- rios_data_token2it %>%
+  filter(dei_related == "TRUE") %>%
+  count(it_tokens_2w, sort = TRUE)
+
+#graph of that 
+rios_2w_count %>%
+  top_n(30) %>%
+  mutate(it_tokens_2w = reorder(it_tokens_2w, n)) %>%
+  ggplot(aes(it_tokens_2w, n)) +
+  geom_col() +
+  coord_flip() +
+  labs(y = "(DEI Related) 2 Word Count in Inclusive Teaching Text") + 
+  xlab(NULL)
+```
+
+
+### 3 words
+
+I also did a 3 gram word Analysis, which has a much a lower frequency. However, this gives us a better idea of what "inclusive teaching" means in these contexts.
+
+```{r 3gwa}
+
+#most common DEI words (ADD TO FINAL FIGURES FOLDER ON GITHUB)
+rios_3w_count <- rios_data_token3it %>%
+  filter(dei_related == "TRUE") %>%
+  count(it_tokens_3w, sort = TRUE)
+
+#graph of the most common
+rios_data_token3it %>%
+  filter(dei_related == "TRUE") %>%
+  count(it_tokens_3w, sort = TRUE) %>%
+  top_n(30) %>%
+  mutate(it_tokens_3w = reorder(it_tokens_3w, n)) %>%
+  ggplot(aes(it_tokens_3w, n)) +
+  geom_col() +
+  coord_flip() +
+  labs(y = "(DEI Related) 3 Word Count in Inclusive Teaching Text") + 
+  xlab(NULL)
+```
+
+
+```{r barplot of in-depth wrd ct by year}
+
+# SHOW CARRIE 
+
+# return top 10 distinct words in each year
+top_10_distinct <- it_word_counts %>% 
+  # return top 10 word counts for each year
+  slice(1:10) %>% 
+  # ungroup by year
+  ungroup(Year) %>% 
+  # return distinct words across the df
+  distinct(inclusive_teach_tokens) 
+
+# transpose and convert to vector
+top_10_distinct <- c(t(top_10_distinct))
+
+# ADD TO FINAL FIGURES FOLDER ON GITHUB
+it_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct) %>%
+  # log the word counts, due to skewness
+  mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, log_n)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~Year, nrow = 2) +
+  labs(title = "(DEI Related) Word Frequency Over Time", x = "(DEI Related) Word", y = "(Logged) Word Count in Inclusive Teaching Text") +
+  # reduce spacing between labels and bars
+  scale_x_discrete(expand = c(.01, .01)) +
+  scale_fill_identity(guide = "none") +
+  # get rid of all elements except y axis labels + adjust plot margin
+  theme(axis.text.y = element_text(size = 7, hjust = 1, family = "Fira Sans"),
+        plot.margin = margin(rep(15, 4)))
+
+```
+
+
+```{r line graph of wrd ct over time}
+
+#ADD TO FINAL FIGURE FOLDER IN GITHUB?
+it_stem_word_counts %>%
+  # filter(Year != 2018) %>%
+  filter(n > 1) %>% #41.58 of data
+  ggplot(aes(Year, n, colour = inclusive_tokens_stem)) +
+  geom_line(show.legend = FALSE) +
+ #geom_text(aes(label = inclusive_teach_tokens), vjust = -0.5, size = 1, nudge_y = 1) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  #facet_wrap(~Year, ncol = 2) +
+  ylim(0,60) +
+  labs(title = "(DEI Related) Stemmed Word Frequency Over Time", x = "Year", y = "Word Count in Inclusive Teaching Text") +
+   ## reduce spacing between labels and bars
+  #scale_x_discrete(expand = c(.01, .01)) +
+  #scale_fill_identity(guide = "none") +
+  ## get rid of all elements except y axis labels + adjust plot margin +
+  theme(axis.text.y = element_text(size = 7, hjust = 1, family = "Fira Sans"),
+        plot.margin = margin(rep(15, 4)))
+
+```
+
+
+
