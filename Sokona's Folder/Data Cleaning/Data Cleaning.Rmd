@@ -1,0 +1,267 @@
+---
+title: "RIOS Research - Inclusive Teaching Text Analysis - Data Cleaning"
+author: "Sokona Mangane"
+date: "2022-12-14"
+output:
+  html_document
+---
+
+# Introduction
+
+My name is Sokona Mangane and I'm from Brooklyn, NY. I'm a senior at Bates College, majoring in Mathematics, and minoring in Digital and Computational Studies. I manually entered the title, Inclusive Teaching section, DOI, word count, etc., for each article from the website [CourseSource](https://qubeshub.org/community/groups/coursesource/) into an excel sheet. I imported the csv in R and did some some data cleaning in preparation for analysis. Along with my colleague, Yuhao Zhao, and research mentor, Professor Carrie Diaz-Eaton, we manually verified if all 4,464 distinct words in the *Inclusive Teaching Section* should be labeled as JEDI (looked at the context of the words as required) and imported it into R as well. Presented below is code of how we used this manually verified JEDI keywords list for our data set. 
+
+## Setup/Data Cleaning
+
+I import the necessary packages for analysis.
+
+```{r install and load packages}
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+# store string containing all required packages
+my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC")
+
+# store all installed packages
+ya_installed <- library()$results[,1]
+
+# check whether required packages are already installed and grab only those that still need installation
+need_install<-my_packages[!(my_packages %in% ya_installed)]
+
+# install required packages
+lapply(need_install, install.packages, character.only = TRUE)
+
+#similar process as above, but loading the packages
+
+# store all installed packages
+ya_loaded <- (.packages())
+
+# check whether required packages are already installed and grab only those that still need installation
+need_load<-my_packages[!(my_packages %in% ya_loaded)]
+
+# load required packages
+lapply(need_load, require, character.only = TRUE)
+```
+
+I import the dataset, as well as the JEDI keywords datasets.
+
+```{r import data}
+
+# import dataset from excel
+rios_data <- read_csv("RIOS Research - Course Source - Sheet1 2.csv")
+
+# dataframe used to check for DEI related words or "tokens" in every article; once checked (see line 132), we exported it and manually reviewed the words and then imported it back into R, as you can see below
+#dei_keywords <- read_csv("SJEDI_words 2022-12-20 18_03_42.csv")
+
+# import manually verified list of JEDI words and filter for JEDI words only
+JEDI_keywords_df <- read_csv("cleanedITwords - cleanedITwords.csv") %>% 
+  filter(Carrie == "JEDI") %>% 
+  select(1)
+
+# import manually verified list of JEDI 2 word phrases and filter out words that aren't JEDI
+JEDI_2keywords_df <- read_csv("cleanedIT2words.csv") %>% 
+  filter(...3 == "JEDI") %>% 
+  select(1)
+
+
+```
+
+
+## Data Manipulation
+
+I fixed any errors and added some variables to the original excel data set.
+
+```{r manipulate original df}
+
+# fix human error for one article
+rios_data$`Inclusive Teaching  included?`[12] = "No"
+
+# remove any article that that doesn't have an inclusive teaching section (30 articles)
+rios_data <- rios_data %>% 
+  filter(`Inclusive Teaching  included?` != "No")
+
+# arrange years 
+rios_data <- rios_data %>%
+  arrange(desc(Year))
+
+# create a new column which numbers each article (most recent article: 286)
+rios_data$article_num <- c(nrow(rios_data):1)
+                    
+# create column that groups based on the shift (2014-2018 and 2019-2022)       
+rios_data <- rios_data %>% 
+  mutate(`Group Year` = case_when(
+    as.numeric(Year) <= 2018 ~ "2014 - 2018",
+    as.numeric(Year) > 2018 ~ "2019 - 2022"
+  )) 
+
+# remove unnecessary columns
+rios_data <- rios_data[,-c(11:14)]
+
+```
+
+ASK YUHAO WHAT IS THIS DOING...
+
+```{r Data cleaning: replace and remove}
+
+# decapitalize all strings
+for (i in 1:length(rios_data$`Inclusive Teaching Description`)) {
+  rios_data$`Inclusive Teaching Description`[i]<-str_to_lower(rios_data$`Inclusive Teaching Description`[i])
+}
+
+# make replacing patterns and replace all
+rep_str<-c("alt-text"="alttext", "co-"="co", "re-"="re", "de-"="de", "D/hh"="dhh")
+rios_data$`Inclusive Teaching Description`<-str_replace_all(rios_data$`Inclusive Teaching Description`, rep_str)
+
+# remove all
+rios_data$`Inclusive Teaching Description`<-str_remove_all(rios_data$`Inclusive Teaching Description`, "et")
+```
+
+
+## Creating Tokenized Dataframe 
+
+I create a dataframe where each word from the paragraph in the `Inlcusive Teaching Description` column is "un-nested" into it's own row. I also add a `dei_relatedit` column, which says TRUE if that word (regarding the Inclusive Teaching Descriptions) matches any word from the `JEDI_keywords` dataframe. I also do some additionally data manipulation.
+
+```{r create, manipulate, and clean token df}
+
+# split the text from the `inclusive teaching description` column into a one-token-per-row format
+rios_data_tokenizedit <- rios_data %>%
+  unnest_tokens(output = inclusive_teach_tokens, input = `Inclusive Teaching Description`)
+
+# store unnecessary punctuation, digits, or "stopwords" in a vector for removal
+strings <- c("[:punct:]", "[:digit:]","\\(","\\)")
+stopwords_vec <- stopwords(language = "en")
+stopwords_vec <- stopwords_vec[-c(165:167)]
+
+# remove ~747 rows of punctuation and digits
+rios_data_tokenizedit <- rios_data_tokenizedit %>%
+  filter(!str_detect(inclusive_teach_tokens, paste(strings, collapse = "|")))
+
+# remove ~19,470 rows of english lang. stopwords
+rios_data_tokenizedit <- rios_data_tokenizedit %>%
+  filter(!inclusive_teach_tokens %in% stopwords_vec) 
+
+# create a DEI related column
+rios_data_tokenizedit$dei_relatedit = NA
+
+# check if the word is DEI related, if so, that row in the 'dei_related' column will be TRUE
+rios_data_tokenizedit$dei_relatedit <- sapply(rios_data_tokenizedit$inclusive_teach_tokens, function(x) any(sapply(JEDI_keywords_df, str_detect, string = x)))
+
+# create column that groups based on the shift (2014-2018 and 2019-2022) CHECK AGAIN TO SEE IF YOU STILL NEED THIS IN THIS DF!
+rios_data_tokenizedit <- rios_data_tokenizedit %>% #same code as above but different dateframe
+  mutate(`Group Year` = case_when(
+    as.numeric(Year) <= 2018 ~ "2014 - 2018",
+    as.numeric(Year) > 2018 ~ "2019 - 2022"))
+
+# create column of stemmed tokens
+rios_data_tokenizedit <- rios_data_tokenizedit %>% 
+  mutate(stem = wordStem(rios_data_tokenizedit$inclusive_teach_tokens, language = "en")) %>% 
+  rename("inclusive_tokens_stem" = "stem")
+
+
+```
+
+### Creating Dataframe of Word Counts By Year
+
+Below I create a dataframe of the DEI related word counts by year
+
+```{r}
+
+# save for visuals on word counts, etc
+it_word_counts <- rios_data_tokenizedit %>%
+  filter(dei_relatedit == "TRUE") %>%
+  group_by(Year) %>%
+  count(inclusive_teach_tokens, sort = TRUE)
+
+```
+
+## Creating Tokenized Dataframe of 2-word Phrases
+
+I do the same thing I did above, but for *2-word phrases*.
+
+```{r}
+
+# split the text from the `inclusive teaching description` column into a two-token-per-row format
+rios_data_token2it <- rios_data %>%
+  unnest_tokens(it_tokens_2w, `Inclusive Teaching Description`, token = "ngrams", n = 2)  %>%
+  separate(it_tokens_2w, c("word1", "word2"), sep = " ")
+
+# remove ~33,673 rows of english lang. stopwords and then unite the words
+rios_data_token2it <- rios_data_token2it %>%
+  filter(!word1 %in% stopwords_vec) %>%
+  filter(!word2 %in% stopwords_vec) %>% 
+  unite(it_tokens_2w, word1, word2, sep = " ") 
+
+# remove ~1,004 rows of punctuation and digits
+rios_data_token2it <- rios_data_token2it %>%
+  filter(!str_detect(it_tokens_2w, paste(strings, collapse = "|")))
+
+#create a DEI related column
+rios_data_token2it$dei_related = NA
+
+# check if the phrase is DEI related, if so, that row in the 'dei_related' column will be TRUE
+rios_data_token2it$dei_related <- sapply(rios_data_token2it$it_tokens_2w, function(x) any(sapply(JEDI_2keywords_df, str_detect, string = x)))
+
+
+```
+
+
+## Creating Tokenized Dataframe of 3-word Phrases
+
+I do the same thing I did above, but for *3-word phrases*.
+
+```{r}
+
+# split the text from the `inclusive teaching description` column into a three-token-per-row format
+rios_data_token3it <- rios_data %>%
+  unnest_tokens(it_tokens_3w, `Inclusive Teaching Description`, token = "ngrams", n = 3)  %>%
+  separate(it_tokens_3w, c("word1", "word2", "word3"), sep = " ")
+
+# remove ~41,029 rows of english lang. stopwords and then unite the words
+rios_data_token3it <- rios_data_token3it %>%
+  filter(!word1 %in% stopwords_vec) %>%
+  filter(!word2 %in% stopwords_vec) %>%
+  filter(!word3 %in% stopwords_vec) %>%
+  unite(it_tokens_3w, word1, word2, word3, sep = " ") 
+
+# remove ~900 rows of punctuation and digits
+rios_data_token3it <- rios_data_token3it %>%
+  filter(!str_detect(it_tokens_3w, paste(strings, collapse = "|")))
+
+#create a DEI related column
+rios_data_token3it$dei_related = NA
+
+# check if the phrase is DEI related, if so, that row in the 'dei_related' column will be TRUE
+rios_data_token3it$dei_related <- sapply(rios_data_token3it$it_tokens_3w, function(x) any(sapply(JEDI_2keywords_df, str_detect, string = x)))
+
+```
+
+
+# Exporting
+
+Below I save all of the cleaned data sets above as a csv in preparation for analysis.
+
+```{r}
+# original dataframe
+write_csv2(rios_data, "rios_data.csv")
+
+# tokenized dataframe
+write_csv2(rios_data_tokenizedit, "rios_data_tokenized.csv")
+
+# tokenized dataframe for 2word phrases
+write_csv2(rios_data_token2it, "rios_data_tokenized2.csv")
+
+# tokenized dataframe for 3word phrases
+write_csv2(rios_data_token3it, "rios_data_tokenized3.csv")
+
+# table of DEI related word counts by year
+write_csv2(it_word_counts, "dei_word_counts.csv")
+
+
+# list of JEDI keywords list, just in case
+write_csv2(JEDI_keywords_df, "JEDIkeywords.csv")
+write_csv2(JEDI_2keywords_df, "JEDI2keywords.csv")
+
+
+
+```
+
+
