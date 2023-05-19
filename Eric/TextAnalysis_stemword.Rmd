@@ -569,26 +569,24 @@ rios_2w_net_2014_stemmed.g <- rios_data_token2 %>%
 #Visualization
 set.seed(20181005)
 
-# a <- arrow(angle = 30, length = unit(0.1, "inches"), ends = "last", type = "open")
-# 
-# ggraph(rios_phrase_network, layout = "fr") + geom_edge_link(aes(color = n, width = n), arrow = a) + 
-#     geom_node_point() + geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
-#   labs(title = "Network Plot of (DEI Related) Word Relationship in 2014")
+#original net
+png(file="2w2014.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2014.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2014.g)$n, vertex.size=log(degree(rios_2w_net_2014.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2014")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2014")
+dev.off()
+
+#stemmed net
+png(file="2w2014_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2014_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2014_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2014_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2014")
-
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2014")
+dev.off()
 ```
 
 ### 2015
 
 ```{r 2015}
-# #seperate the two-word pairs into two columns
-# rios_data_token2 <- rios_data_token2it %>%
-#   separate(it_tokens_2w, c("word1", "word2"), sep = " ")
 
 #create a igraph graph object
 rios_2w_net_2015.g <- rios_data_token2 %>% 
@@ -611,16 +609,18 @@ rios_2w_net_2015_stemmed.g <- rios_data_token2 %>%
 #Visualization
 set.seed(20181005)
 
-# a <- arrow(angle = 30, length = unit(0.1, "inches"), ends = "last", type = "open")
-# 
-# ggraph(rios_phrase_network, layout = "fr") + geom_edge_link(aes(color = n, width = n), arrow = a) + 
-#     geom_node_point() + geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+#original net
+png(file="2w2015.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2015.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2015.g)$n, vertex.size=log(degree(rios_2w_net_2015.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2015")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2015")
+dev.off()
+
+#stemmed version
+png(file="2w2015_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2015_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2015_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2015_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2015")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2015")
 ```
 
 
@@ -649,18 +649,20 @@ rios_2w_net_2016_stemmed.g <- rios_data_token2 %>%
 ```{r 2016}
 set.seed(20181005)
 
-# a <- arrow(angle = 30, length = unit(0.1, "inches"), ends = "last", type = "open")
-# 
-# ggraph(rios_phrase_network, layout = "fr") + geom_edge_link(aes(color = n, width = n), arrow = a) + 
-#     geom_node_point() + geom_node_text(aes(label = name), vjust = 1, hjust = 1)
 
 #original net
+png(file="2w2016.png",res=1000, width=10000, height=10000, pointsize = 9)
+
 plot(rios_2w_net_2016.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2016.g)$n, vertex.size=log(degree(rios_2w_net_2016.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.3, main="Network of (DEI Related) Word Relationship in 2016")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2016")
+dev.off()
 
 #stemmed net
+png(file="2w2016_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+
 plot(rios_2w_net_2016_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2016_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2016_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2016")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2016")
+dev.off()
 ```
 
 ### 2017
@@ -684,18 +686,18 @@ rios_2w_net_2017_stemmed.g <- rios_data_token2 %>%
 
 ```{r 2017}
 set.seed(20181005)
-# 
-# a <- arrow(angle = 30, length = unit(0.1, "inches"), ends = "last", type = "open")
-# 
-# ggraph(rios_phrase_network, layout = "fr") + geom_edge_link(aes(color = n, width = n), arrow = a) + 
-#     geom_node_point() + geom_node_text(aes(label = name), vjust = 1, hjust = 1)
 
+png(file="2w2017.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2017.g, layout=layout_with_fr, edge.width =E(rios_2w_net_2017.g)$n, vertex.size=log(degree(rios_2w_net_2017.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=0.2,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.3, main="Network of (DEI Related) Word Relationship in 2017")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2017")
+dev.off()
+
+png(file="2w2017_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2017_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2017_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2017_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2017")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2017")
+dev.off()
 ```
 
 ### 2018
@@ -720,17 +722,17 @@ rios_2w_net_2018_stemmed.g <- rios_data_token2 %>%
 ```{r 2018}
 set.seed(20181005)
 
-# a <- arrow(angle = 30, length = unit(0.1, "inches"), ends = "last", type = "open")
-# 
-# ggraph(rios_phrase_network, layout = "fr") + geom_edge_link(aes(color = n, width = n), arrow = a) + 
-#     geom_node_point() + geom_node_text(aes(label = name), vjust = 1, hjust = 1)
-
+png(file="2w2018.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2018.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2018.g)$n, vertex.size=log(degree(rios_2w_net_2018.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=0.2,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.3, main="Network of (DEI Related) Word Relationship in 2018")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2018")
+dev.off()
+
+png(file="2w2018_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2018_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2018_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2018_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2018")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2018")
+dev.off()
 ```
 
 ### 2019
@@ -754,20 +756,20 @@ rios_2w_net_2019_stemmed.g <- rios_data_token2 %>%
 
 ```{r 2019}
 set.seed(20181005)
-# 
-# a <- arrow(angle = 30, length = unit(0.1, "inches"), ends = "last", type = "open")
-# 
-# ggraph(rios_phrase_network, layout = "fr") + geom_edge_link(aes(color = n, width = n), arrow = a) + 
-#     geom_node_point() + geom_node_text(aes(label = name), vjust = 1, hjust = 1)
 
-#png(file="2w2019.png",res=4000, width=35000, height=35000, pointsize = 9)
+#original net
+png(file="2w2019.png",res=1000, width=10000, height=10000, pointsize = 9)
 
-plot(rios_2w_net_2019.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2019.g)$n,vertex.label=V(rios_2w_net_2019.g)$name, vertex.size=log(degree(rios_2w_net_2019.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=0.2,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.3, main="Network of (DEI Related) Word Relationship in 2019")
+plot(rios_2w_net_2019.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2019.g)$n, vertex.size=log(degree(rios_2w_net_2019.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2019")
+dev.off()
 
+#stemmed version
+png(file="2w2019_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
 plot(rios_2w_net_2019_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2019_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2019_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2019")
-#dev.off()
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2019")
+dev.off()
+
 ```
 
 
@@ -792,12 +794,18 @@ rios_2w_net_2020_stemmed.g <- rios_data_token2 %>%
 ```{r 2020}
 set.seed(20181005)
 
+#original net
+png(file="2w2020.png",res=1000, width=10000, height=10000, pointsize = 9)
+
 plot(rios_2w_net_2020.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2020.g)$n*2, vertex.size=log(degree(rios_2w_net_2020.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.3, main="Network of (DEI Related) Word Relationship in 2020")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2020")
+dev.off()
+
+png(file="2w2020_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2020_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2020_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2020_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2020")
-
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2020")
+dev.off()
 ```
 
 ### 2021
@@ -820,18 +828,21 @@ rios_2w_net_2021_stemmed.g <- rios_data_token2 %>%
 
 ```{r 2021}
 set.seed(20181005)
-# 
-# a <- arrow(angle = 30, length = unit(0.1, "inches"), ends = "last", type = "open")
-# 
-# ggraph(rios_phrase_network, layout = "fr") + geom_edge_link(aes(color = n, width = n), arrow = a) + 
-#     geom_node_point() + geom_node_text(aes(label = name), vjust = 1, hjust = 1)
 
+
+#original net
+png(file="2w2021.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2021.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2021.g)$n, vertex.size=log(degree(rios_2w_net_2021.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.3, main="Network of (DEI Related) Word Relationship in 2021")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2021")
+dev.off()
+
+#stemmed version
+png(file="2w2021_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2021_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2021_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2021_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2021")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2021")
+dev.off()
 ```
 
 ### 2022
@@ -853,18 +864,18 @@ rios_2w_net_2022_stemmed.g <- rios_data_token2 %>%
 
 set.seed(20181005)
 
-# a <- arrow(angle = 30, length = unit(0.1, "inches"), ends = "last", type = "open")
-# 
-# ggraph(rios_phrase_network, layout = "fr") + geom_edge_link(aes(color = n, width = n), arrow = a) + 
-#     geom_node_point() + geom_node_text(aes(label = name), vjust = 1, hjust = 1)  +
-#   labs(title = "Network Plot of (DEI Related) Word Relationship in 2022")
 
+png(file="2w2022.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2022.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2022.g)$n, vertex.size=log(degree(rios_2w_net_2022.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.3, main="Network of (DEI Related) Word Relationship in 2022")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2022")
+dev.off()
+
+png(file="2w2022_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
 
 plot(rios_2w_net_2022_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2022_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2022_stemmed.g)),vertex.label.degree=-pi/2,
-vertex.label.dist=1,vertex.label.cex=0.5, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2022")
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2022")
+dev.off()
 ```
 ### Statistical measure summary
 
