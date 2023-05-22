@@ -68,6 +68,7 @@ rios_data$`Inclusive Teaching  included?`[12] = "No"
 rios_data <- rios_data %>% arrange(desc(Year))
 ```
 
+
 ```{r More Data Cleaning}
 # I've created a variable which contains diversity related words (words pulled from the keywords column) and then combined it with the `dei_keywords` dataframe I imported (Thank you Dr. Diaz-Eaton). I also added another column, which includes the article number for each row.
 
