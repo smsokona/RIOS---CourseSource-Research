@@ -410,11 +410,13 @@ rios_data_tokenized3 %>%
 ```
 
 
-## In Depth Bar Chart of Word Count By Year 
+## In Depth Bar Chart & Line graph of Word Freuqency Over Time
 
-Below is a bar chart that looks more in depth into the frequency of words being used, each year. As mentioned above, the word *students* is an outlier (hence, resulting in the highest frequency for every year), so I use the log of the word counts. We can see the number and diversity of words increase each year, with a huge shift beginning in 2019. 
+Below is a bar chart that looks more in depth into the frequency of words being used, each year. As mentioned above, the word *students* is an outlier (hence, resulting in the highest frequency for every year), so I use the log of the word counts. We can see the diversity of words increases, beginning in 2019. I also create a line graph, which highlights the words that are used more frequently after 2018.
 
-```{r barplot of in-depth wrd ct by year, dev='png'}
+```{r barplot and line graph of wrd ct over time, dev='png'}
+
+## Code for Bar Chart
 
 # return top 10 distinct words in each year
 top_10_distinct <- dei_word_counts %>% 
@@ -446,14 +448,8 @@ top_10_distinct <- c(t(top_10_distinct))
   # get rid of all elements except y axis labels + adjust plot margin
   theme(axis.text.y = element_text(size = 7, hjust = 1, family = "Fira Sans"),
         plot.margin = margin(rep(15, 4)))
-
-```
-
-
-
-## Line graph of Word Freuqency Over Time
-
-```{r line graph of wrd ct over time, dev='png'}
+ 
+ ## Code for Line Graph
 
 # define the group of words that are going to be highlighted 
 highlights <- c("opportunity", "inclusive", "diverse", "diversity", "individual", "visual", "engage", "environment", "active", "encourage")
@@ -580,27 +576,22 @@ totaldeiarticle <- rios_data_tokenized %>%
 
 ## In Depth Bar Chart of Word Count By Year: Side By Side Comparison {.tabset}
 
+Below you can see the bar chart above more clearly. Click on each tab to see the word frequency for each year.
+
 ### 2014
 
 ```{r V2 2014, warning=FALSE}
 
-# it_word_counts %>% 
-#   filter(inclusive_teach_tokens != "students") %>% 
-#   group_by(Year) %>% 
-#   summarise(max = max(n))
-# 
-# it_stem_word_counts %>% 
-#   filter(inclusive_tokens_stem != "student") %>% 
-#   group_by(Year) %>% 
-#   summarise(max = max(n))
-
-it_word_counts %>%
-  filter(Year == 2014) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2014) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  # ylim(0,35)
+
 ```
 
 ### 2015
