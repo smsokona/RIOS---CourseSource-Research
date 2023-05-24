@@ -65,6 +65,13 @@ I fixed any errors and added some variables to the original excel data set.
 # fix human error for one article
 rios_data$`Inclusive Teaching  included?`[12] = "No"
 
+# standardize "yes" in 'Inclusive Teaching  included?' column
+rios_data <- rios_data %>% 
+  mutate(`Inclusive Teaching  included?` = case_when(
+    `Inclusive Teaching  included?` == "yes" | `Inclusive Teaching  included?` == "Yes" ~ "Yes",
+    TRUE ~ "No"
+  ))
+
 # remove any article that that doesn't have an inclusive teaching section (30 articles)
 rios_data <- rios_data %>% 
   filter(`Inclusive Teaching  included?` != "No")
