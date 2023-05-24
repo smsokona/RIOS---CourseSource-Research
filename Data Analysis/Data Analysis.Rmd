@@ -143,7 +143,7 @@ rios_data %>%
 
 To more clearly see the shift before and after 2018, I create a plot of the average word count comparing the word count before and after 2018. I also conduct a one-sample t-test. 
 
-```{r avg. wrd ct bar plot by group year}
+```{r avg. wrd ct bar plot by group year, dev='png'}
 
 # conduct a one sample t-test
 # testbygroupyr <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Group Year`, data = rios_data)
@@ -173,7 +173,7 @@ rios_data %>%
 
 Like above, I create a plot of the average word count comparing the word count for articles which include authors that attended CourseSource workshops and those that didn't. I also conduct a one-sample t-test. 
 
-```{r avg. wrd ct bar plot by workshop attendance}
+```{r avg. wrd ct bar plot by workshop attendance, dev='png'}
 
 # conduct a one sample t-test
 testbyattendance <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Attended Workshop?`, data = rios_data)
@@ -195,9 +195,13 @@ rios_data %>%
   geom_col() + 
   labs(title = "Average Word Count of Inclusive Teaching Section", subtitle = "By Attendance Type", x = "Attendance Type", y = "Average Word Count") + 
   # manually color groups (color blind safe colors) 
-  scale_fill_manual(values = c("#b2df8a", "#1f78b4")) + 
+  scale_fill_manual(values = c("#a6cee3", "#1f78b4")) + 
   # create confidence intervals 
-  geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4)
+  geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4) +
+  # reorder categorical x axis
+
+  scale_x_discrete(limits = rev(levels(rios_data$`Attended Workshop?`)))
+  
   
 ```
 
@@ -211,6 +215,8 @@ rios_data %>%
 rios_2w_count <- rios_data_token2it %>%
   filter(dei_related == "TRUE") %>%
   count(it_tokens_2w, sort = TRUE)
+
+rios_2w_count
 
 #graph of that 
 rios_2w_count %>%
