@@ -93,28 +93,20 @@ Yuhao calculates
 
 DEI_count<-rep(0, 286)
 
-if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$article_num[k] == rios_data$article_num[i] ){
-  DEI_count[i]=DEI_count[i]+1
-}
-
-rios_data %>% 
-  filter(article_num == 93) %>% 
-  select(8)
-
 #
-for(i in 1:length(DEI_count)){
-  for (k in 1:length(rios_data_tokenized$Title)){
-    if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$article_num[k] == rios_data$article_num[i] ){
-      DEI_count[i]=DEI_count[i]+1
-    }
-  }
-}
-
-# store the DEI count in the df
-rios_data$DEI_count <- DEI_count
-
-# calculate and store the % of DEI words in the df
-rios_data$`DEI Words %` <-(rios_data$DEI_count/rios_data$`Word Count of Inclusive Teaching?`)*100
+# for(i in 1:length(DEI_count)){
+#   for (k in 1:length(rios_data_tokenized$Title)){
+#     if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$article_num[k] == rios_data$article_num[i] ){
+#       DEI_count[i]=DEI_count[i]+1
+#     }
+#   }
+# }
+# 
+# # store the DEI count in the df
+# rios_data$DEI_count <- DEI_count
+# 
+# # calculate and store the % of DEI words in the df
+# rios_data$`DEI Words %` <-(rios_data$DEI_count/rios_data$`Word Count of Inclusive Teaching?`)*100
 
 ```
 
@@ -146,7 +138,7 @@ wrdctboxplot <- function(){
   abline(v = 216.0667, col = "#1f78b4",lty = "solid", lwd = 3)
     
   # impose legend which explain horizontal lines
-  #legend("topright", inset=.02, title="Average Word Count", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=TRUE, cex=0.8)
+  legend("topright", inset=.02, title="Average Word Count", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
     
   # unfactor years
   rios_data$Year <-  unfactor(rios_data$Year)
@@ -169,7 +161,7 @@ error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
 }
 
 # creates side by side plot of box plot and bar plot (1 row, 2 columns), specify size of labels and margins (bottom, left, top, right)
-par(mfrow = c(1,2), cex = 0.6, mai = c(0.7,0.75,0.3,0.3))
+par(mfrow = c(1,2), cex = 0.6, mai = c(0.7,0.75,0.3,0.4))
 
 # define area for boxplot
 par(fig = c(0,0.68,0,1), new = TRUE)
@@ -180,12 +172,13 @@ wrdctboxplot()
 # define area for bar plot
 par(fig=c(0.6,1,0,1), new = TRUE)
 
-# add the error bar on the plot using my "error bar" function  
+# store the base barplot in a variable 
 base_barplot <- barplot(data$Avg_Wrd_Ct ~ data$`Group Year`, axis.lty = 1, ylim = c(0,250), col = c("#b2df8a", "#1f78b4"), xlab = "Year", ylab = "Average Word Count", xaxt = "n")
 
+# add the error bar on the plot using my "error bar" function
 error.bar(base_barplot, data$Avg_Wrd_Ct, data$ic)
 
-#
+# rotate the x axis on the barplot
 text(base_barplot, par("usr")[3], srt = 45, labels = c("2014 - 2018", "2019 - 2022") , adj = c(1.1,1.1), xpd = TRUE, cex=.79)
 
 
@@ -258,10 +251,51 @@ rios_data %>%
   # create confidence intervals 
   geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4) +
   # reorder categorical x axis
-
   scale_x_discrete(limits = rev(levels(rios_data$`Attended Workshop?`)))
   
   
+```
+
+### Average JEDI Word Count for Workshop Attendees
+
+```{r}
+
+# calculate total DEI related words for each article, and store in dataframe
+totaldeiarticle <- rios_data_tokenized %>% 
+  group_by(`Group Year`, `Attended Workshop?`) %>% 
+  count(inclusive_teach_tokens) %>% 
+  summarise(totaldeia = n())
+
+#total words in each article 
+totalwordsarticle <-  rios_data_tokenized %>%
+  group_by(article_num, Year, `Group Year`) %>%
+  count(inclusive_teach_tokens, sort = TRUE)  %>%
+  summarise(totala = n())
+
+# create bar plot
+totalwordsarticle %>% 
+  group_by(Year, `Group Year`) %>% 
+  summarise(Article_n_per_year = n()) %>% 
+  full_join(totaldeiarticle, by = "Group Year") %>% 
+  ungroup(Year) %>% 
+  group_by(`Attended Workshop?`, `Group Year`) %>% 
+  # calculate avg. wrd ct, length, and standard deviation for each group
+  summarise(Avg_word_count = totaldeia/Article_n_per_year, 
+            n = n(),
+            sd = sd(totaldeia, na.rm = TRUE)) %>% 
+  # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
+  mutate(se = sd/sqrt(n), 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% 
+  ggplot(aes(`Attended Workshop?`, Avg_word_count, fill = `Group Year`)) +
+  geom_col() + 
+  labs(title = "Average (DEI related) Word Count of Inclusive Teaching Section", subtitle = "By Group Year", x = "Attendance Type", y = "Average Word Count") + 
+  # manually color groups (color blind safe colors) 
+  scale_fill_manual(values = c("#a6cee3", "#1f78b4")) + 
+  # create confidence intervals 
+  geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_word_count - ic, ymax = Avg_word_count + ic), width = 0.4) +
+  # reorder categorical x axis
+  scale_x_discrete(limits = rev(levels(rios_data$`Attended Workshop?`)))
+
 ```
 
 
@@ -314,17 +348,10 @@ rios_data_tokenized2 %>%
   count(it_tokens_2w, sort = TRUE) %>% 
   head(10)
 
-<<<<<<< HEAD
-rios_2w_count
-
-#graph of that 
-rios_2w_count %>%
-=======
 # graph of that 
 rios_data_tokenized2 %>%
   filter(dei_related == "TRUE") %>%
   count(it_tokens_2w, sort = TRUE) %>%
->>>>>>> 13ce3c77532fdaa6aa59dc1e6459db21a9735905
   top_n(30) %>%
   mutate(it_tokens_2w = reorder(it_tokens_2w, n)) %>%
   ggplot(aes(it_tokens_2w, n)) +
@@ -339,7 +366,7 @@ rios_data_tokenized2 %>%
 
 I also did a 3 gram word Analysis, which has a much a lower frequency. However, this gives us a better idea of what "inclusive teaching" means in these contexts.
 
-```{r top 10 common 2-words and graph}
+```{r top 10 common 3-words and graph}
 
 # print out top 10 most common DEI related 3-word phrases
 rios_data_tokenized3 %>%
@@ -514,20 +541,11 @@ grid.arrange(base_bargraph_over_time, base_lineplot, ncol = 1, nrow = 2)
 #totaldei for each article, only 251 obs, so some articles don't have any dei related words (30 articles with no Inclusive Teaching Section...)
 totaldeiarticle <- rios_data_tokenized %>%
   filter(dei_relatedit == "TRUE") %>%
-  group_by(article_num, Year) %>%
+  group_by(article_num, Year, `Group Year`) %>%
   count(inclusive_teach_tokens) %>%
   summarise(totaldeia = n()) 
 
-#total words in each article, 
-totalwordsarticle <-  rios_data_tokenized %>%
-  group_by(article_num, Year) %>%
-  count(inclusive_teach_tokens, sort = TRUE)  %>%
-  summarise(totala = n())
-
-totalwordsarticle %>% 
-  group_by(Year) %>% 
-  summarise(Article_n_per_year = n()) %>% 
-  full_join(totaldeiarticle, by = "Year") %>% 
+  
   full_join(totalwordsarticle, by = c("article_num")) %>%
   mutate(ratio = totaldeia/totala) %>% 
   group_by(Year.x) %>% 
