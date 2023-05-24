@@ -19,7 +19,7 @@ I import the necessary packages for analysis.
 # knitr::opts_chunks$set(warning = FALSE, message = FALSE)
 
 # store string containing all required packages
-my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr")
+my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr", "git2rdata")
 
 # store all installed packages
 ya_installed <- library()$results[,1]
@@ -47,14 +47,11 @@ I import the dataset, as well as the JEDI keywords dataset.
 
 ```{r import data, warning=FALSE, message=FALSE}
 
-# local folder path: C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Import/
-# cloud folder path: /cloud/project/Data Cleaning/Data for Import/
-
 # import dataset from excel
-rios_data <- read_csv("C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Import/RIOS Research - Course Source - Sheet1 2.csv")
+rios_data <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Import/RIOS%20Research%20-%20Course%20Source%20-%20Sheet1%202.csv")
 
 # list of JEDI/DEI keywords given by research mentor Dr. Diaz Eaton; Used in another paper and will be used below to check for DEI related words in every section
-dei_keywords <- read_csv("C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Import/SJEDI_words 2022-12-20 18_03_42.csv")
+dei_keywords <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Import/SJEDI_words%202022-12-20%2018_03_42.csv")
 
 ```
 
@@ -96,25 +93,6 @@ rios_data <- rios_data %>%
 # remove unnecessary columns
 rios_data <- rios_data[,-c(11:14)]
 
-```
-
-ASK YUHAO FOR DESPCRIPTIONS OF THESE CODE CHUNKS...
-
-Yuhao ...
-
-```{r Data cleaning: replace and remove}
-
-# decapitalize all strings
-for (i in 1:length(rios_data$`Inclusive Teaching Description`)) {
-  rios_data$`Inclusive Teaching Description`[i]<-str_to_lower(rios_data$`Inclusive Teaching Description`[i])
-}
-
-# make replacing patterns and replace all
-rep_str<-c("alt-text"="alttext", "co-"="co", "re-"="re", "de-"="de", "D/hh"="dhh")
-rios_data$`Inclusive Teaching Description`<-str_replace_all(rios_data$`Inclusive Teaching Description`, rep_str)
-
-# remove all
-rios_data$`Inclusive Teaching Description`<-str_remove_all(rios_data$`Inclusive Teaching Description`, "et")
 ```
 
 # Creating Tokenized Dataframe 
@@ -178,7 +156,7 @@ After manual verification, I import the verified JEDI keyword list back into R. 
 ``` {r manipulate, warning=FALSE, message=FALSE}
 
 # import manually verified list of JEDI words and filter for JEDI words only
-JEDI_keywords_df <- read_csv("C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Import/cleanedITwords - cleanedITwords.csv") %>% 
+JEDI_keywords_df <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Import/cleanedITwords%20-%20cleanedITwords.csv") %>% 
   filter(Carrie == "JEDI") %>% 
   select(1)
 
@@ -198,31 +176,6 @@ rios_data_tokenizedit <- rios_data_tokenizedit %>% #same code as above but diffe
 rios_data_tokenizedit <- rios_data_tokenizedit %>% 
   mutate(stem = wordStem(rios_data_tokenizedit$inclusive_teach_tokens, language = "en")) %>% 
   rename("inclusive_tokens_stem" = "stem")
-
-```
-
-## Paper-wise statistics
-
-Yuhao calculates
-
-```{r}
-# 
-# DEI_count<-rep(0, 286)
-# 
-# # 
-# for(i in 1:length(DEI_count)){
-#   for (k in 1:length(rios_data_tokenizedit$Title)){
-#     if( (rios_data_tokenizedit$dei_relatedit[k] == "TRUE") && (rios_data_tokenizedit$Title[k] == rios_data$Title[i]) ){
-#       DEI_count[i]=DEI_count[i]+1
-#     }
-#   }
-#   }
-# 
-# # store the DEI count in the df
-# rios_data$DEI_count <- DEI_count
-# 
-# # calculate and store the % of DEI words in the df
-# rios_data$`DEI Words %` <-(rios_data$DEI_count/rios_data$`Word Count of Inclusive Teaching?`)*100
 
 ```
 
@@ -283,7 +236,7 @@ In the commented code below, I export a CSV of all distinct 2-word phrases in th
 # write_csv(all2words, "2DEIRelated.csv")
 
 # import manually verified list of JEDI 2 word phrases and filter out words that aren't JEDI
-JEDI_2keywords_df <- read_csv("C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Import/cleanedIT2words.csv") %>% 
+JEDI_2keywords_df <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Import/cleanedIT2words.csv") %>% 
   filter(...3 == "JEDI") %>% 
   select(1)
 
@@ -328,10 +281,10 @@ rios_data_token3it$dei_related <- sapply(rios_data_token3it$it_tokens_3w, functi
 
 Below I save all of the cleaned data sets above as a csv in preparation for analysis.
 
-```{r export cleaned df's}
+```{r export cleaned dfs}
 
 # original dataframe
-write_csv(rios_data, "C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/rios_data.csv") #CHANGE FOLDER PATH ON COMPUTER
+write_csv(rios_data, "C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/rios_data.csv") 
 
 # tokenized dataframe
 write_csv(rios_data_tokenizedit, "C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/rios_data_tokenized.csv")

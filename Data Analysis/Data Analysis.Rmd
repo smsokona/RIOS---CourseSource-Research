@@ -1,7 +1,7 @@
 ---
 title: "RIOS Research - Inclusive Teaching Text Analysis"
 author: "Sokona Mangane"
-date: "2022-12-14"
+date: "`r Sys.Date()`"
 output:
   html_document:
     code_folding: hide
@@ -27,7 +27,7 @@ I import the necessary packages (same code in the Data Cleaning RMD).
 ```{r install and load packages, message=FALSE, warning=FALSE}
 
 # store string containing all required packages
-my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr", "ggrepel", "ggtext", "showtext", "rcartocolor")
+my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr", "ggrepel", "ggtext", "showtext", "rcartocolor", "gridExtra")
 
 # store all installed packages
 ya_installed <- library()$results[,1]
@@ -168,17 +168,29 @@ error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
   arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length, ...)
 }
 
-# creates side by side plot of box plot and bar plot (1 row, 2 columns)
-par(mfrow = c(1,2))
+# creates side by side plot of box plot and bar plot (1 row, 2 columns), specify size of labels and margins (bottom, left, top, right)
+par(mfrow = c(1,2), cex = 0.6, mai = c(0.7,0.75,0.3,0.3))
+
+# define area for boxplot
+par(fig = c(0,0.68,0,1), new = TRUE)
 
 # run box plot
 wrdctboxplot() 
 
+# define area for bar plot
+par(fig=c(0.6,1,0,1), new = TRUE)
+
 # add the error bar on the plot using my "error bar" function  
-error.bar(barplot(data$Avg_Wrd_Ct, axis.lty = 1, names.arg = c("2014 - 2018", "2019 - 2022"), ylim = c(0,250), col = c("#b2df8a", "#1f78b4"), xlab = "Year", ylab = "Average Word Count"), data$Avg_Wrd_Ct, data$ic)
+base_barplot <- barplot(data$Avg_Wrd_Ct ~ data$`Group Year`, axis.lty = 1, ylim = c(0,250), col = c("#b2df8a", "#1f78b4"), xlab = "Year", ylab = "Average Word Count", xaxt = "n")
+
+error.bar(base_barplot, data$Avg_Wrd_Ct, data$ic)
+
+#
+text(base_barplot, par("usr")[3], srt = 45, labels = c("2014 - 2018", "2019 - 2022") , adj = c(1.1,1.1), xpd = TRUE, cex=.79)
 
 
 
+# names.arg = c("2014-2018", "2019-2022")
 # conduct a one sample t-test
 # testbygroupyr <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Group Year`, data = rios_data)
 # 
@@ -373,7 +385,7 @@ top_10_distinct <- dei_word_counts %>%
 top_10_distinct <- c(t(top_10_distinct))
 
 # create bar graph over time
-dei_word_counts %>%
+ base_bargraph_over_time <- dei_word_counts %>%
   # using only 14.17% DEI related words in dataset
   filter(inclusive_teach_tokens %in% top_10_distinct) %>%
   # log the word counts, due to skewness
@@ -382,7 +394,7 @@ dei_word_counts %>%
   geom_col() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   facet_wrap(~Year, nrow = 2) +
-  labs(title = "(DEI Related) Logged Word Frequency Over Time", x = "(DEI Related) Word", y = "(Logged) Word Count in Inclusive Teaching Text") +
+  labs(x = "(DEI Related) Word", y = "Log(Word Count)") +
   # reduce spacing between labels and bars
   scale_x_discrete(expand = c(.01, .01)) +
   scale_fill_identity(guide = "none") +
@@ -399,50 +411,21 @@ dei_word_counts %>%
 ```{r line graph of wrd ct over time, dev='png'}
 
 # define the group of words that are going to be highlighted 
-highlights <- c("students", "opportunity", "inclusive", "diverse", "diversity", "individual", "visual", "engage", "environment", "active")
+highlights <- c("opportunity", "inclusive", "diverse", "diversity", "individual", "visual", "engage", "environment", "active", "encourage")
 n <- length(highlights)
-
-
-#totaldei for each article, only 251 obs, so some articles don't have any dei related words (30 articles with no Inclusive Teaching Section...)
-totaldeiarticle <- rios_data_tokenized %>%
-  filter(dei_relatedit == "TRUE") %>%
-  group_by(article_num, Year) %>%
-  count(inclusive_teach_tokens) %>%
-  summarise(totaldeia = n()) 
-
-#total words in each article, 
-totalwordsarticle <-  rios_data_tokenized %>%
-  group_by(article_num, Year) %>%
-  count(inclusive_teach_tokens, sort = TRUE)  %>%
-  summarise(totala = n())
-
-totalwordsarticle %>% 
-  group_by(Year) %>% 
-  summarise(Article_n_per_year = n()) %>% 
-  full_join(totaldeiarticle, by = "Year") %>% 
-  full_join(totalwordsarticle, by = c("article_num")) %>%
-  mutate(ratio = totaldeia/totala) %>% 
-  group_by(Year.x) %>% 
-  mutate(avg_perc_per_year = sum(ratio)/Article_n_per_year) %>% 
-  select(1,2,4,6:8)
-  # ggplot(aes(Year.x, avg_perc_per_year)) + 
-  # geom_line()
-
-totaldeiarticle %>%
-  full_join(totalwordsarticle, by = c("article_num")) %>%
-  mutate(ratio = totaldeia/totala) %>%
-  group_by(Year)  %>% 
 
  # create 'group' column, which will be used to color the lines
 dei_word_counts <- dei_word_counts %>% 
+  # removing students due to skewness
+  filter(inclusive_teach_tokens != "students") %>% 
   mutate(group = if_else(inclusive_teach_tokens %in% highlights, inclusive_teach_tokens, "other"),
          group = as.factor(group)) %>% 
   mutate(group = fct_relevel(group, "other", after = Inf),
-         name_lab = if_else(Year == 2020, inclusive_teach_tokens, NA_character_)) %>% 
+         name_lab = if_else(Year == 2020, inclusive_teach_tokens, NA_character_)) 
 
 
 # create line graph, with highlighted words on top over non-highlighted words
-ggplot(
+base_lineplot <- ggplot(
   # filter for counts > 1 and data for the highlighted words
   dei_word_counts %>% filter(n > 1 & group != "other"),
   aes(Year, n, group = inclusive_teach_tokens)
@@ -482,7 +465,7 @@ ggplot(
   labs(title = "(DEI Related) Word Frequency Over Time", x = "Year", y = "Word Count in Inclusive Teaching Text")
 
 # create line graph of top 40 words, with highlighted words on top over non-highlighted words
-ggplot(
+base_lineplot_top40 <- ggplot(
   # filter for counts > 1 and data for the highlighted words
   dei_word_counts %>% filter(n > 1 & group != "other" & inclusive_teach_tokens %in% top_10_distinct),
   aes(Year, n, group = inclusive_teach_tokens)
@@ -520,6 +503,41 @@ ggplot(
   ylim(0,60) +
   # labels
   labs(title = "(DEI Related) Word Frequency Over Time", x = "Year", y = "Word Count in Inclusive Teaching Text")
+
+
+require(gridExtra)
+grid.arrange(base_bargraph_over_time, base_lineplot, ncol = 1, nrow = 2)
+
+
+
+```
+
+```{r}
+
+#totaldei for each article, only 251 obs, so some articles don't have any dei related words (30 articles with no Inclusive Teaching Section...)
+totaldeiarticle <- rios_data_tokenized %>%
+  filter(dei_relatedit == "TRUE") %>%
+  group_by(article_num, Year) %>%
+  count(inclusive_teach_tokens) %>%
+  summarise(totaldeia = n()) 
+
+#total words in each article, 
+totalwordsarticle <-  rios_data_tokenized %>%
+  group_by(article_num, Year) %>%
+  count(inclusive_teach_tokens, sort = TRUE)  %>%
+  summarise(totala = n())
+
+totalwordsarticle %>% 
+  group_by(Year) %>% 
+  summarise(Article_n_per_year = n()) %>% 
+  full_join(totaldeiarticle, by = "Year") %>% 
+  full_join(totalwordsarticle, by = c("article_num")) %>%
+  mutate(ratio = totaldeia/totala) %>% 
+  group_by(Year.x) %>% 
+  mutate(avg_perc_per_year = sum(ratio)/Article_n_per_year) %>% 
+  select(1,2,4,6:8)
+  # ggplot(aes(Year.x, avg_perc_per_year)) + 
+  # geom_line()
 
 ```
 
