@@ -380,8 +380,6 @@ rios_data_token3it %>%
 
 
 
-
-
 ## In Depth Bar Chart of Word Count By Year {.tabset}
 
 This is a bar chart that looks more in depth into the frequency of words being used, each year. You can click on each tab to see to compare. Although 2014-2016 have higher proportions of DEI words, from 2018-2022, the top 20 DEI related words are used more frequently, specifically the words "diverse", "diversity", "engage", "individual", and "inclusive" are being used more. We can see that the number and diversity of words increases (there are decreases in 2018, and 2021) each year. 
