@@ -27,7 +27,7 @@ I import the necessary packages (same code in the Data Cleaning RMD).
 ```{r install and load packages, message=FALSE, warning=FALSE}
 
 # store string containing all required packages
-my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr", "ggrepel", "ggtext", "showtext", "rcartocolor", "gridExtra")
+my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr", "ggrepel", "ggtext", "showtext", "rcartocolor", "gridExtra", "cowplot")
 
 # store all installed packages
 ya_installed <- library()$results[,1]
@@ -414,7 +414,7 @@ rios_data_tokenized3 %>%
 
 Below is a bar chart that looks more in depth into the frequency of words being used, each year. As mentioned above, the word *students* is an outlier (hence, resulting in the highest frequency for every year), so I use the log of the word counts. We can see the diversity of words increases, beginning in 2019. I also create a line graph, which highlights the words that are used more frequently after 2018.
 
-```{r barplot and line graph of wrd ct over time, dev='png'}
+```{r barplot and line graph of wrd ct over time, dev='png', warning=FALSE, message = FALSE}
 
 ## Code for Bar Chart
 
@@ -439,6 +439,7 @@ top_10_distinct <- c(t(top_10_distinct))
   mutate(log_n = log(n)) %>% 
   ggplot(aes(inclusive_teach_tokens, log_n)) +
   geom_col() +
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   facet_wrap(~Year, nrow = 2) +
   labs(x = "(DEI Related) Word", y = "Log(Word Count)") +
@@ -447,7 +448,8 @@ top_10_distinct <- c(t(top_10_distinct))
   scale_fill_identity(guide = "none") +
   # get rid of all elements except y axis labels + adjust plot margin
   theme(axis.text.y = element_text(size = 7, hjust = 1, family = "Fira Sans"),
-        plot.margin = margin(rep(15, 4)))
+        plot.margin = margin(rep(15, 4))) + 
+   theme_minimal()
  
  ## Code for Line Graph
 
@@ -462,7 +464,7 @@ dei_word_counts <- dei_word_counts %>%
   mutate(group = if_else(inclusive_teach_tokens %in% highlights, inclusive_teach_tokens, "other"),
          group = as.factor(group)) %>% 
   mutate(group = fct_relevel(group, "other", after = Inf),
-         name_lab = if_else(Year == 2020, inclusive_teach_tokens, NA_character_)) 
+         name_lab = if_else(Year == 2021, inclusive_teach_tokens, NA_character_)) 
 
 
 # create line graph, with highlighted words on top over non-highlighted words
@@ -501,9 +503,10 @@ base_lineplot <- ggplot(
     segment.ncp = 3,
     segment.angle = 20
   ) +
-  ylim(0,60) +
+  # ylim(0,60) +
   # labels
-  labs(title = "(DEI Related) Word Frequency Over Time", x = "Year", y = "Word Count in Inclusive Teaching Text")
+  labs(x = "Year", y = "Word Count") + 
+  theme_minimal()
 
 # create line graph of top 40 words, with highlighted words on top over non-highlighted words
 base_lineplot_top40 <- ggplot(
@@ -540,20 +543,28 @@ base_lineplot_top40 <- ggplot(
     segment.curvature = -0.1,
     segment.ncp = 3,
     segment.angle = 20
-  ) +
-  ylim(0,60) +
+  )  +
+  # ylim(0,60) +
   # labels
-  labs(title = "(DEI Related) Word Frequency Over Time", x = "Year", y = "Word Count in Inclusive Teaching Text")
+  labs(x = "Year", y = "Word Count") + 
+  theme_minimal()
 
 
-require(gridExtra)
-grid.arrange(base_bargraph_over_time, base_lineplot, ncol = 1, nrow = 2)
+# SHOW CARRIE AND SUGGEST TAB GROUPS...
 
+# require(gridExtra)
+ grid.arrange(base_bargraph_over_time, base_lineplot, ncol = 2)
+
+
+# arrange two plots into one column
+plot_grid(
+  base_bargraph_over_time, base_lineplot, ncol = 1
+)
 
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 
 #totaldei for each article, only 251 obs, so some articles don't have any dei related words (30 articles with no Inclusive Teaching Section...)
 totaldeiarticle <- rios_data_tokenized %>%
@@ -576,7 +587,7 @@ totaldeiarticle <- rios_data_tokenized %>%
 
 ## In Depth Bar Chart of Word Count By Year: Side By Side Comparison {.tabset}
 
-Below you can see the bar chart above more clearly. Click on each tab to see the word frequency for each year.
+Below you can see the bar chart above more clearly. Click on each tab to see the word frequency for each year. For comparisons purposes, the y axis has the same limits for all the graphs.
 
 ### 2014
 
@@ -589,8 +600,12 @@ dei_word_counts %>%
   # mutate(log_n = log(n)) %>% 
   ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-  # ylim(0,35)
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
 
 ```
 
@@ -598,104 +613,160 @@ dei_word_counts %>%
 
 ```{r V2 2015, warning=FALSE}
 
-it_word_counts %>%
-  filter(Year == 2015) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2015) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count") 
+
 ```
 
 ### 2016
 
 ```{r V2 2016, warning=FALSE}
 
-it_word_counts %>%
-  filter(Year == 2016) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2016) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
 ```
 
 ### 2017
 
 ```{r V2 2017, warning=FALSE}
 
-it_word_counts %>%
-  filter(Year == 2017) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2017) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
 ```
 
 ### 2018
 
 ```{r V2 2018, warning=FALSE}
 
-it_word_counts %>%
-  filter(Year == 2018) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2018) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
 ```
 
 ### 2019
 
 ```{r V2 2019, warning=FALSE}
 
-it_word_counts %>%
-  filter(Year == 2019) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2019) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
 ```
 
 ### 2020
 
 ```{r V2 2020, warning=FALSE}
 
-it_word_counts %>%
-  filter(Year == 2020) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2020) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
 ```
 
 ### 2021
 
 ```{r V2 2021, warning=FALSE}
 
-it_word_counts %>%
-  filter(Year == 2021) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2021) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
 ```
 
 ### 2022
 
 ```{r V2 2022, warning=FALSE}
 
-it_word_counts %>%
-  filter(Year == 2022) %>%
-  head(20) %>%
-  ggplot(aes(inclusive_teach_tokens, n)) + 
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2022) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylim(0,35)
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
 ```
 
 ##  {-}
@@ -703,152 +774,213 @@ it_word_counts %>%
 
 ## Normalized Word Frequency: The Most Distinctive Words By Year {.tabset}
 
-This can help us see the "weight" of each words and the words most distinctive for each year. Here we're printing the idf, which is the ["inverse document frequency, which decreases the weight for commonly used words and increases the weight for words that are not used very much in a collection of documents. This can be combined with term frequency to calculate a term's tf-idf [the term frequency and idf multiplied together], the frequency of a term adjusted for how rarely it is used. The statistic tf-idf is intended to measure how important a word is to a document in a collection (or corpus) of documents, for example, to one novel in a collection of novels or to one website in a collection of websites"](https://www.tidytextmining.com/tfidf.html).
+The normalized word frequency can help us see the "weight" of each word and the words most distinctive for each year. Here we're printing the idf, which is the ["inverse document frequency, which decreases the weight for commonly used words and increases the weight for words that are not used very much in a collection of documents. This can be combined with term frequency to calculate a term's tf-idf [the term frequency and idf multiplied together], the frequency of a term adjusted for how rarely it is used. The statistic tf-idf is intended to measure how important a word is to a document in a collection (or corpus) of documents, for example, to one novel in a collection of novels or to one website in a collection of websites"](https://www.tidytextmining.com/tfidf.html).
 
-For comparisons purposes, the y axis has the same limits for all the graphs, where we can see that the words "cultured" and disengaged" are the most distinct words compared to the other DEI related words for the rest of the years. These results make sense and align with the visuals above. Because the use of these words are very low in 2014 (besides diversity and diverse which was seen more than 5 times in 2014), they have a high tf-idf statistic. These words have been used more each year.
+For comparisons purposes, the y axis has the same limits for all the graphs. We can see which words are the most *unique* to each year and see that the tf-idf becomes uniform after 2018. These results make sense and align with the visuals above.
 
 ### 2014
 
 ```{r norm word freq}
 
-
 #finding the most distinctive words for each document
-it_word_counts %>%
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2014) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2014", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + ylim(0,0.04)
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2014", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
 ```
 
 ### 2015
 
 ```{r}
-it_word_counts %>%
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2015) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2015", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + ylim(0,0.04)
-
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2015", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
 ```
 
 ### 2016
 
-```{r}
-it_word_counts %>%
+```{r} 
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2016) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2016", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + ylim(0,0.04)
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2016", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
 ```
 
 ### 2017
 
 ```{r}
-it_word_counts %>%
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2017) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2017", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + ylim(0,0.04)
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2017", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
 
 ```
 
 ### 2018
 
 ```{r}
-it_word_counts %>%
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2018) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2018", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + ylim(0,0.04)
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2018", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
 
 ```
 
 ### 2019
 
 ```{r}
-it_word_counts %>%
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2019) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2019", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + ylim(0,0.04)
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2019", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
 
 ```
 
 ### 2020
 
 ```{r}
-it_word_counts %>%
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2020) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2020", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + ylim(0,0.04)
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2020", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
 
 ```
 
 ### 2021
 
 ```{r}
-it_word_counts %>%
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2021) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2021", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + ylim(0,0.04)
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2021", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
 
 ```
 
 ### 2022
 
 ```{r}
-it_word_counts %>%
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
   bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
   arrange(desc(tf_idf)) %>%
   filter(Year == 2022) %>%
+  # select the top 40
   top_n(40) %>%
-  mutate(it_tokens_3w = reorder(inclusive_teach_tokens,tf_idf)) %>%
   ggplot(aes(inclusive_teach_tokens, tf_idf)) +
   geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2022", x = "DEI Related Words", y = "Word Weight (tf-idf statistic)") + ylim(0,0.04)
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2022", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
 
 ```
 
@@ -930,7 +1062,7 @@ total3deiarticle <- rios_data_tokenized3 %>%
 
 Here's another visualization of what's presented above, but as a box plot. It's interesting to see this and range for 2018, especially considering the number of observations (of ratios) that we have per year (in the table beneath the graph).
 
-```{r}
+```{r, eval=FALSE}
 
 df1 <- totaldeiarticle %>%
   full_join(totalwordsarticle, by = c("article_num")) %>%
@@ -952,7 +1084,7 @@ df1 %>%
 
 ### 2 word Phrases 
 
-```{r}
+```{r, eval=FALSE}
 
 df2 <- total2deiarticle %>%
   full_join(totalwordsarticle, by = c("article_num")) %>%
@@ -975,7 +1107,7 @@ df2 %>%
 ### 3 word Phrases
 
 
-```{r}
+```{r, eval=FALSE}
 
 df3 <- total3deiarticle %>%
   full_join(totalwordsarticle, by = c("article_num")) %>%
@@ -1003,7 +1135,7 @@ df3 %>%
 Although the number of DEI related words is increasing each year, based on the graph below the proportions are decreasing.
  
  
-```{r}
+```{r, eval=FALSE}
 
 #proportions for each year, fluctuating 
 totaldeiyear %>%
@@ -1017,7 +1149,7 @@ totaldeiyear %>%
  
 The low proportions in the years 2019-2022 could also be because there were simply way more words those years, as the table below presents:
 
-```{r}
+```{r, eval=FALSE}
 
 totaldeiyear %>%
   full_join(totalwordsyear, by = c("Year")) %>%
@@ -1028,7 +1160,7 @@ totaldeiyear %>%
 
 I decided to group by article number as well for a better, more detailed look at the changes in the proportions. Because we're looking at the proportions by article the proportions are higher on this graph. Regardless, we can see a trend of the proportions decreasing here as well, with 2014 having the highest proportions. However, articles 34 (in Year 2022), 78 (in Year 2021), and 160 (in Year 2019) have some of the highest proportions as well. Notice for articles 120, 171, 197, 220, and 242 there are no diversity related words and that's why there are "blanks" in the graph.
 
-```{r Proportion of DEI Words 2}
+```{r Proportion of DEI Words 2, eval=FALSE}
 
 #proportions for each article, also fluctuating (higher article # means it happened earlier ex: article # 270 = year 2014)
 totaldeiarticle %>%
@@ -1053,7 +1185,7 @@ totaldeiarticle %>%
 
 When we look at the proportion of DEI *phrases* by year, they're increasing unlike the trends we saw above. 
 
-```{r Proportions of DEI Phrases}
+```{r Proportions of DEI Phrases, eval=FALSE}
   
 
 #proportions for each year, fluctuating like before
@@ -1071,7 +1203,7 @@ total2deiyear %>%
 
 Although we see a slight downward trend here (based on the straight line), some of the highest proportions by article are in from 2018-2022.
 
-```{r Proportions of DEI Phrases 2}
+```{r Proportions of DEI Phrases 2, eval=FALSE}
 #proportions for each article, also fluctuating
 total2deiarticle %>%
   full_join(totalwordsarticle, by = c("article_num")) %>%
@@ -1090,7 +1222,7 @@ total2deiarticle %>%
 
 Just like the DEI phrases of 2 words, we can see that the proportions are increasing every year, with the highest proportion in 2020!
 
-```{r Proportions of DEI Phrases 3w}
+```{r Proportions of DEI Phrases 3w, eval=FALSE}
   
 
 #proportions for each year, fluctuating like before
@@ -1108,7 +1240,7 @@ total3deiyear %>%
 
 There are a lot of breaks in our graph compared to the other two graphs, but this showcases a trend of the proportion decreasing. However notice the outliers in 2018/2019 are consistent with our findings from the bar chart of the most common words each year (which sparked in 2019).
 
-```{r Proportions of DEI Phrases 3w 2}
+```{r Proportions of DEI Phrases 3w 2, eval=FALSE}
 #proportions for each article, also fluctuating
 total3deiarticle %>%
   full_join(totalwordsarticle, by = c("article_num")) %>%

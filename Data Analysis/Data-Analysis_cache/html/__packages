@@ -27,3 +27,4 @@ showtextdb
 showtext
 rcartocolor
 gridExtra
+cowplot
