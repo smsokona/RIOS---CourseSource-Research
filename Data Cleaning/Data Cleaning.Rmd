@@ -14,7 +14,7 @@ My name is Sokona Mangane and I'm from Brooklyn, NY. I'm a senior at Bates Colle
 
 I import the necessary packages for analysis.
 
-```{r install and load packages, message=FALSE, warning=FALSE}
+```{r install and load packages, message=FALSE, warning=FALSE, results='hide'}
 
 # knitr::opts_chunks$set(warning = FALSE, message = FALSE)
 
@@ -99,6 +99,20 @@ rios_data <- rios_data %>%
 
 # remove unnecessary columns
 rios_data <- rios_data[,-c(11:14)]
+
+# decapitalize all strings
+for (i in 1:length(rios_data$`Inclusive Teaching Description`)) {
+  rios_data$`Inclusive Teaching Description`[i]<-str_to_lower(rios_data$`Inclusive Teaching Description`[i])
+}
+
+# store a vector of strings that need to be replaced 
+rep_str<-c("alt-text"="alttext", "co-"="co", "re-"="re", "de-"="de", "D/hh"="dhh")
+
+#  replace strings that match the patterns above
+rios_data$`Inclusive Teaching Description`<-str_replace_all(rios_data$`Inclusive Teaching Description`, rep_str)
+
+# remove all "et" 
+rios_data$`Inclusive Teaching Description`<-str_remove_all(rios_data$`Inclusive Teaching Description`, "et")
 
 ```
 
