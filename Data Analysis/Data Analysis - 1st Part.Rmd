@@ -1,0 +1,1279 @@
+---
+title: "RIOS Research - Inclusive Teaching Data Analysis"
+author: "Sokona Mangane"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+# Introduction
+
+My name is Sokona Mangane and I'm from Brooklyn, NY. I'm a senior at Bates College, majoring in Mathematics, and minoring in Digital and Computational Studies. In the the data cleaning folder, I created dataframes which identifies each word in the inclusive teaching section and if they should be considered JEDI (related to justice, equity, diversity, and inclusion). Below, I import the data that I cleaned to analyze the word frequency of DEI related words and how they change over time. I create tables, box plots, bar plots, and line graphs. My colleague, Yuhao helped to comment out my code, calculate statistics about the DEI % of each article. He also conducted a network analysis, which is another folder titled *Network Analysis*
+
+# Setup
+
+I import the necessary packages (same code in the Data Cleaning markdown in the *Data Cleaning* folder).
+
+```{r install and load packages, message=FALSE, warning=FALSE}
+
+# store string containing all required packages
+my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr", "ggrepel", "ggtext", "showtext", "rcartocolor", "gridExtra", "cowplot")
+
+# store all installed packages
+ya_installed <- library()$results[,1]
+
+# check whether required packages are already installed and grab only those that still need installation
+need_install<-my_packages[!(my_packages %in% ya_installed)]
+
+# install required packages
+lapply(need_install, install.packages, character.only = TRUE)
+
+#similar process as above, but loading the packages
+
+# store all installed packages
+ya_loaded <- (.packages())
+
+# check whether required packages are already installed and grab only those that still need installation
+need_load<-my_packages[!(my_packages %in% ya_loaded)]
+
+# load required packages
+lapply(need_load, require, character.only = TRUE)
+
+```
+
+Below I specify global options that I want for all of my code chunks.
+
+```{r setup-chunk, include=FALSE}
+knitr::opts_chunk$set(dpi = 300, # save the PNGs at a nice high quality please, at 300 pi
+                      cache = TRUE, 
+                      warning = FALSE, # doesn't print warnings 
+                      message = FALSE) # doesn't print messages
+```
+
+I import the required datasets for analysis, which were exported from the Data Cleaning folder.
+
+```{r import data, message=FALSE, warning=FALSE}
+
+# import the datasets which were exported from the Data Cleaning folder
+
+#original cleaned dataset
+rios_data <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Export/rios_data.csv")
+
+# cleaned tokenized dataset
+rios_data_tokenized <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Export/rios_data_tokenized.csv") 
+
+# cleaned tokenized dataset for two word phrases
+rios_data_tokenized2 <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Export/rios_data_tokenized2.csv")
+
+# cleaned tokenized dataset for three word phrases
+rios_data_tokenized3 <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Export/rios_data_tokenized3.csv")
+
+#cleaned dataset of words counts, grouped by year
+dei_word_counts <- read_csv("https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Export/dei_word_counts.csv")
+
+```
+
+# Paper-wise statistics
+
+Yuhao creates a column of the percentage of DEI words for each article.
+
+```{r paper-wise stats}
+
+# # store a vector of 256 zero's (the length of our data frame, to be replaced below)
+# DEI_count<-rep(0, 256)
+# 
+# # count the amount of DEI words in each article and store the count in the vector above
+# for(i in 1:length(DEI_count)){
+#   for (k in 1:length(rios_data_tokenized$Title)){
+#     if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$article_num[k] == rios_data$article_num[i] ){
+#       DEI_count[i]=DEI_count[i]+1
+#     }
+#   }
+# }
+# 
+# # store the DEI count in the df
+# rios_data$`DEI Word count` <- DEI_count
+# 
+# # calculate and store the % of DEI words in the df
+# rios_data$`DEI Words %` <-(rios_data$DEI_count/rios_data$`Word Count of Inclusive Teaching?`)*100
+
+```
+
+# Exploratory Data Analysis: Word Count
+
+## Word Count of Inclusive Teaching Text Over Time & Average Word Count Before and After 2018
+
+The boxplot below visualizes the word count of the Inclusive Teaching Section over time. The Word count increases in the 2019-2022 group compared to the years prior, and we also start to see more outliers. To more clearly see the shift before and after 2018, I also create a bar plot of the average word count, comparing the word count before and after 2018. I also conduct a one-sample t-test. Overall, since the creation of Course Source, the word count of the Inclusive Teaching Section has increased.
+
+```{r wrd ct boxplot and barchart, dev = "png"}
+
+## Code for box plot
+
+wrdctboxplot <- function(){
+  # factor years to reorder from oldest to most recent (to be consistent with table below)
+  rios_data$Year <- factor(rios_data$Year , levels=c("2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014"))
+  
+  # create box plot and store in function
+  boxplot(`Word Count of Inclusive Teaching?`~ Year,
+          data=rios_data,
+          ylab="Year",
+          xlab="Word Count",
+          horizontal = TRUE, 
+          # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
+          col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"))
+    
+  # color and impose horizontal line of 2014 - 2018 group average word count
+  abline(v = 118.4868, col = "#b2df8a", lty = "solid", lwd = 3)
+  
+  # color and impose horizontal line of 2019 - 2022 group average word count
+  abline(v = 216.0667, col = "#1f78b4",lty = "solid", lwd = 3)
+    
+  # impose legend which explain horizontal lines
+  legend("topright", inset=.02, title="Average Word Count", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
+    
+  # unfactor years
+  rios_data$Year <-  unfactor(rios_data$Year)
+}
+
+## code for bar plot
+
+# store data for bar plot
+data <- rios_data %>% 
+  group_by(`Group Year`) %>% 
+  # calculate avg. wrd ct, length, and standard deviation for each group year
+  summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), 
+            n = n(),
+            sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% 
+  # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
+  mutate(se = sd/sqrt(n), 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1)) 
+
+# A function to add arrows on the chart
+error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
+  arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length, ...)
+}
+
+# creates side by side plot of box plot and bar plot (1 row, 2 columns), specify size of labels and margins (bottom, left, top, right)
+par(mfrow = c(1,2), cex = 0.6, mai = c(0.7,0.75,0.3,0.4))
+
+# define area for boxplot
+par(fig = c(0,0.68,0,1), new = TRUE)
+
+# run box plot
+wrdctboxplot() 
+
+# define area for bar plot
+par(fig=c(0.6,1,0,1), new = TRUE)
+
+# store the base barplot in a variable 
+base_barplot <- barplot(data$Avg_Wrd_Ct ~ data$`Group Year`, axis.lty = 1, ylim = c(0,250), col = c("#b2df8a", "#1f78b4"), xlab = "Year", ylab = "Average Word Count", xaxt = "n")
+
+# add the error bar on the plot using my "error bar" function and run
+error.bar(base_barplot, data$Avg_Wrd_Ct, data$ic)
+
+# rotate the x axis on the barplot
+text(base_barplot, par("usr")[3], srt = 45, labels = c("2014 - 2018", "2019 - 2022") , adj = c(1.1,1.1), xpd = TRUE, cex=.79)
+
+
+# conduct a one sample t-test
+testbygroupyr <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Group Year`, data = rios_data)
+
+# print
+testbygroupyr #p-value = 1.557e-10, confidence interval:  -126.37537  -68.78427, df = 254?!
+
+```
+
+Presented below is an in-depth look at what's visualized above.
+
+```{r wrd ct skim table, dev='png'}
+
+# create skim() table
+rios_data %>% 
+  # group by year
+  group_by(Year) %>% 
+  # present an overview only on the 'word count' column
+  skim(starts_with("Word Count")) %>% 
+  # remove the variable and completion rate column
+  select(3,4,6:13)  %>% 
+  # round the mean and sd columns; calculate the variance
+  mutate(numeric.mean = round(numeric.mean, digits = 2), numeric.sd = round(numeric.sd, digits = 2), variance = (numeric.sd)^2) %>% 
+  # rename all columns
+  rename("Mean" = "numeric.mean",
+         "Missing?" = "n_missing",
+         "SD" = "numeric.sd",
+         "Variance" = "variance",
+         "Min" = "numeric.p0",
+         "25 Q" = "numeric.p25",
+         "Median" = "numeric.p50",
+         "75 Q" = "numeric.p75",
+         "Max" = "numeric.p100",
+         "Histogram" = "numeric.hist") %>% 
+  # turn this table into a nicely formatted table
+  kable() %>% 
+  kable_minimal()
+
+```
+
+## Average Word Count For Workshop Attendees
+
+Here I create a plot of the average word count comparing the word count for articles which include authors that attended CourseSource workshops and those that didn't. I also conduct a one-sample t-test. Overall, the word count for those who've attended workshops are higher.
+
+```{r avg. wrd ct bar plot by workshop attendance, dev='png'}
+
+# create bar plot
+rios_data %>% 
+  group_by(`Attended Workshop?`) %>% 
+  # calculate avg. wrd ct, length, and standard deviation for each group
+  summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), 
+            n = n(),
+            sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% 
+  # calculate the standard error and the standard error multiplied by the value of the t-distribution for 0.5
+  mutate(se = sd/sqrt(n), 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% 
+  ggplot(aes(`Attended Workshop?`, Avg_Wrd_Ct, fill = `Attended Workshop?`)) +
+  geom_col() + 
+  labs(title = "Average Word Count of Inclusive Teaching Section", subtitle = "By Attendance Type", x = "Attendance Type", y = "Average Word Count") + 
+  # manually color groups (color blind safe colors) 
+  scale_fill_manual(values = c("#a6cee3", "#1f78b4")) + 
+  # create confidence intervals 
+  geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4) +
+  # reorder categorical x axis
+  scale_x_discrete(limits = rev(levels(rios_data$`Attended Workshop?`)))
+  
+
+# conduct a one sample t-test
+testbyattendance <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Attended Workshop?`, data = rios_data)
+
+# print
+testbyattendance #p-value = 0.01227, confidence interval (difference btw. means):  -140.73083  -18.08968, df = 46.607
+  
+```
+
+### Average *JEDI* Word Count for Workshop Attendees
+
+Below, I create a plot of the average *JEDI* word count, comparing the word count for articles which include authors that attended CourseSource workshops and those that didn't and also conduct a one-sample t-test. Although the average JEDI word count is much lower here, we can see that those who've attended workshops have a relatively higher average word count, like we see above.
+
+```{r}
+
+# calculate total DEI related words for each article, and store in dataframe
+dei_by_workshop <- rios_data_tokenized %>% 
+  filter(dei_relatedit == "TRUE") %>%
+  group_by(article_num, `Attended Workshop?`) %>% 
+  count(inclusive_teach_tokens) %>% 
+  summarise(totaldeia = n())
+
+# create bar plot
+dei_by_workshop %>% 
+  group_by(`Attended Workshop?`) %>% 
+  # calculate avg. wrd ct, length, and standard deviation for each group
+  summarise(Avg_word_count = mean(totaldeia), 
+            n = n(),
+            sd = sd(totaldeia, na.rm = TRUE)) %>% 
+  # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
+  mutate(se = sd/sqrt(n), 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% 
+  ggplot(aes(`Attended Workshop?`, Avg_word_count, fill = `Attended Workshop?`)) +
+  geom_col() + 
+  labs(title = "Average (DEI related) Word Count of Inclusive Teaching Section", subtitle = "By Attendance Type", x = "Attendance Type", y = "Average Word Count") + 
+  # manually color groups (color blind safe colors) 
+  scale_fill_manual(values = c("#a6cee3", "#1f78b4")) + 
+  # create confidence intervals 
+  geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_word_count - ic, ymax = Avg_word_count + ic), width = 0.4) 
+
+# conduct a one sample t-test
+jeditestbyattendance <- t.test(formula = totaldeia ~ `Attended Workshop?`, data = dei_by_workshop)
+
+# print
+jeditestbyattendance #p-value = 0.02788, confidence interval (difference btw. means):  -8.1950137 -0.4900862, df = 54.354
+
+```
+
+# Exploratory Data Analysis: Word Frequency
+
+## What are the most common "DEI" Words in the Inclusive Teaching Description?
+
+About 17% of words in the Inclusive Teaching Text are DEI related (761/4,469). Looking at the most common DEI words gives us an idea of what DEI words are being used the most, and what does that tell us about how the authors are being inclusive. According to the table below, the words "inclusive", "students", and "diversity" are the most commons DEI words.
+
+However, it's no surprise that students is the most common, as authors will inevitably have to mention how their article is inclusive of *students*. Additionally, the title of this section for which these descriptions are under is called "Inclusive Teaching", so one could have a lengthy description under this section, without including any of the words from `dei_keywords` and then mention "inclusive teaching" to be included in this category.
+
+```{r top 15 common dei words, dev='png'}
+
+# print out top 15 most common DEI related words, USE KABLE()
+rios_data_tokenized %>%
+  filter(dei_relatedit == "TRUE") %>%
+  count(inclusive_teach_tokens, sort = TRUE) %>%
+  # print the top 15
+  head(15) %>% 
+  # rename columns
+  rename("Word" = "inclusive_teach_tokens",
+         "Count" = "n") %>% 
+  # turn this table into a nicely formatted table
+  kable() %>% 
+  kable_minimal()
+  
+
+```
+
+## Word Cloud
+
+Word clouds are another way of visualizing which words are being used the most. I removed the word "students", since it's an outlier. There are still so many DEI related words, so I create a word cloud of the *stemmed* DEI related words.
+
+```{r wordcloud, warning = FALSE}
+
+# create word cloud of stemmed DEI related words 
+rios_data_tokenized %>% 
+  filter(inclusive_teach_tokens != "students" & dei_relatedit == "TRUE") %>%
+  count(inclusive_tokens_stem, sort = TRUE) %>% 
+  # words w/ frequency below 2 won't be plotted, this elimates about 33.2% of the data
+  with(wordcloud(inclusive_tokens_stem, n, min.freq = 2)) 
+
+```
+
+## Common DEI Phrases
+
+The tables and word cloud above give us an idea of how often particular DEI Words are used. However, looking at the most commonly used DEI words doesn't give us all the information on how the article is being inclusive and their definitions of it. Here I repeat the analyses I did above, but looking at phrases, specifically of 2 words and of 3 words. Based on the words above and phrases below, active learning, catering to a diverse set of backgrounds and abilities, amd having underrepresented students from diverse backgrounds participate in a group seems to be a substantial part of inclusive teaching.
+
+### 2 words
+
+```{r top 15 common 2-words and graph}
+
+# print out top 10 most common DEI related 2-word phrases
+rios_data_tokenized2 %>%
+  filter(dei_related == "TRUE") %>%
+  count(it_tokens_2w, sort = TRUE) %>%
+  # print the top 15
+  head(15) %>% 
+  # rename columns
+  rename("Word" = "it_tokens_2w",
+         "Count" = "n") %>% 
+  # turn this table into a nicely formatted table
+  kable() %>% 
+  kable_minimal()
+
+```
+
+### 3 words
+
+```{r top 15 common 3-words and graph}
+
+# print out top 15 most common DEI related 3-word phrases
+rios_data_tokenized3 %>%
+  filter(dei_related == "TRUE") %>%
+  count(it_tokens_3w, sort = TRUE) %>%
+  # print the top 15
+  head(15) %>% 
+  # rename columns
+  rename("Word" = "it_tokens_3w",
+         "Count" = "n") %>% 
+  # turn this table into a nicely formatted table
+  kable() %>% 
+  kable_minimal()
+
+```
+
+## In Depth Bar Chart & Line graph of Word Freuqency Over Time
+
+Below is a bar chart that looks more in depth into the frequency of words being used, each year. As mentioned above, the word *students* is an outlier, so I use the log of the word counts. I return the top 10 most common words in each year (which should return 90 words) and then return the \*unique\* words of the 90. We can see the diversity of words increases, beginning in 2019. I also create a line graph, which highlights the words that are used more frequently after 2018. This is consistent with the visualizations above.
+
+To more clearly see the words and their *actual* word counts each year, click each tab in the next section below.
+
+```{r barplot and line graph of wrd ct over time, dev='png', warning=FALSE, message = FALSE}
+
+## Code for Bar Chart
+
+# return top 10 distinct words in each year
+top_10_distinct <- dei_word_counts %>% 
+  group_by(Year) %>% 
+  # return top 10 word counts for each year
+  slice(1:10) %>% 
+  # ungroup by year
+  ungroup(Year) %>% 
+  # return distinct words across the df
+  distinct(inclusive_teach_tokens) 
+
+# transpose and convert to vector
+top_10_distinct <- c(t(top_10_distinct))
+
+# create bar graph over time
+ base_bargraph_over_time <- dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct) %>%
+  # log the word counts, due to skewness
+  mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, log_n)) +
+  geom_col() +
+  facet_wrap(~Year, nrow = 2) +
+  labs(y = "Log(Word Count)") +
+  scale_fill_identity(guide = "none") +
+  # suppress the x axis
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) + 
+   scale_x_discrete(labels = NULL, breaks = NULL) + labs(x = " ") +
+  # change the theme
+   theme_minimal()
+ 
+ ## Code for Line Graph
+
+# define the group of words that are going to be highlighted 
+highlights <- c("opportunity", "inclusive", "diverse", "diversity", "individual", "visual", "engage", "environment", "active", "encourage")
+n <- length(highlights)
+
+ # create 'Word' column, which will be used to color the lines
+dei_word_counts <- dei_word_counts %>% 
+  # removing students due to skewness
+  filter(inclusive_teach_tokens != "students") %>% 
+  mutate(Word = if_else(inclusive_teach_tokens %in% highlights, inclusive_teach_tokens, "other"),
+         Word = as.factor(Word)) %>% 
+  mutate(Word = fct_relevel(Word, "other", after = Inf),
+         name_lab = if_else(Year == 2021, inclusive_teach_tokens, NA_character_)) 
+
+# create line graph s
+base_lineplot <- ggplot(
+  # filter for counts > 1, for the highlighted words, and the top 40 words across all years
+  dei_word_counts %>% filter(n > 1 & Word != "other" & inclusive_teach_tokens %in% top_10_distinct),
+  aes(Year, n, Word = inclusive_teach_tokens)
+  ) +
+  # lines for the non-highlighted words
+  geom_line(
+    data = dei_word_counts %>% filter(Word == "other"),
+    color = "grey75",
+    size = .6,
+    alpha = .5
+    ) +
+  # lines for the highlighted words
+  geom_line(
+    aes(color = Word),
+    size = 0.9
+  ) +
+  # use ggrepel package to automatically place labels
+  geom_text_repel(
+    aes(color = Word, label = name_lab),
+    family = "Lato",
+    fontface = "bold",
+    size = 3,
+    direction = "y",
+    hjust = 0,
+    segment.size = .7,
+    segment.alpha = .5,
+    segment.linetype = "dotted",
+    box.padding = .4,
+    segment.curvature = -0.1,
+    segment.ncp = 3,
+    segment.angle = 20,
+    show.legend = FALSE
+  )  +
+  # labels
+  labs(x = "Year", y = "Word Count") + 
+  # remove "a" from legend box
+  theme(legend.position = "none") +
+  # change the theme
+  theme_minimal() +
+  # add colorblind safe palette
+  scale_color_manual(values = c("#40004b", "#762a83", "#9970ab", "#c51b7d", "#543005", "#053061", "#a6dba0", "#5aae61", "#1b7837", "#00441b"))
+
+
+# arrange two plots into one column
+ require(gridExtra)
+ grid.arrange(base_bargraph_over_time, base_lineplot, heights=c(3,2))
+
+```
+
+## In Depth Bar Chart of Word Count By Year: Side By Side Comparison {.tabset}
+
+Below you can see the bar chart above more clearly. Click on each tab to see the word frequency for each year. For comparisons purposes, the y axis has the same limits for all the graphs. As above, the word *students* is obscured.
+
+### 2014
+
+```{r V2 2014, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2014) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
+```
+
+### 2015
+
+```{r V2 2015, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2015) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count") 
+
+```
+
+### 2016
+
+```{r V2 2016, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2016) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
+```
+
+### 2017
+
+```{r V2 2017, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2017) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
+```
+
+### 2018
+
+```{r V2 2018, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2018) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
+```
+
+### 2019
+
+```{r V2 2019, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2019) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
+```
+
+### 2020
+
+```{r V2 2020, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2020) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
+```
+
+### 2021
+
+```{r V2 2021, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2021) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
+```
+
+### 2022
+
+```{r V2 2022, warning=FALSE}
+
+dei_word_counts %>%
+  # using only 14.17% DEI related words in dataset
+  filter(inclusive_teach_tokens %in% top_10_distinct & Year == 2022) %>%
+  # log the word counts, due to skewness
+  # mutate(log_n = log(n)) %>% 
+  ggplot(aes(inclusive_teach_tokens, n))+ 
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # set the same y limit for all graphs
+  ylim(0,34) + 
+  # add labels
+  labs(x = "Word", y = "Count")
+
+```
+
+##  {.unnumbered}
+
+## Normalized Word Frequency: The Most Distinctive Words By Year {.tabset}
+
+The normalized word frequency can help us see the "weight" of each word and the words most distinctive for each year. Here we're printing the idf, which is the ["inverse document frequency, which decreases the weight for commonly used words and increases the weight for words that are not used very much in a collection of documents. This can be combined with term frequency to calculate a term's tf-idf [the term frequency and idf multiplied together], the frequency of a term adjusted for how rarely it is used. The statistic tf-idf is intended to measure how important a word is to a document in a collection (or corpus) of documents, for example, to one novel in a collection of novels or to one website in a collection of websites"](https://www.tidytextmining.com/tfidf.html).
+
+For comparisons purposes, the y axis has the same limits for all the graphs. We can see which words are the most *unique* to each year and see that the tf-idf becomes uniform after 2018. These results make sense and align with the visuals above.
+
+### 2014
+
+```{r norm word freq}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2014) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2014", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
+```
+
+### 2015
+
+```{r}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2015) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2015", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+```
+
+### 2016
+
+```{r}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2016) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2016", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
+```
+
+### 2017
+
+```{r}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2017) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2017", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
+```
+
+### 2018
+
+```{r}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2018) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2018", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
+```
+
+### 2019
+
+```{r}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2019) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2019", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
+```
+
+### 2020
+
+```{r}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2020) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2020", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
+```
+
+### 2021
+
+```{r}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2021) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2021", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
+```
+
+### 2022
+
+```{r}
+
+#finding the most distinctive words for each document
+dei_word_counts %>%
+  # calculate and bind the term frequency and inverse document frequency
+  bind_tf_idf(inclusive_teach_tokens, Year, n) %>%
+  arrange(desc(tf_idf)) %>%
+  filter(Year == 2022) %>%
+  # select the top 40
+  top_n(40) %>%
+  ggplot(aes(inclusive_teach_tokens, tf_idf)) +
+  geom_bar(stat = "identity", show.legend = FALSE) + 
+  # rotate words on x axis
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  # label axes
+  labs(title = "(DEI Related) Normalized Word Frequency in Inclusive Teaching Text in 2022", x = "DEI Related Words", y = "Word Weight (tf-idf statistic") + 
+  # set same y limit for all graphs
+  ylim(0,0.051)
+
+```
+
+##  {.unnumbered}
+
+# Exploratory Data Analysis: The Most DEI Related Content
+
+Which articles and years has the highest proportion of DEI related *words* and *phrases*? How does this proportion change?
+
+Looking at proportions gives us an idea of how many DEI words are being used and if there is a change over time. Below, I calculate the number of DEI related words for each article and year. Then, I divided those numbers by the total amount of words for each article and year to get a proportion. This process is similar to what Yuhao does (see [Paper-wise statistics]), however I use the data frames: `rios_data_tokenized`, `rios_data_tokenized2`, and `rios_data_tokenized3`. This way I can calculate the total number of phrases (by counting the number of rows) and also have a more accurate ratio, since these data frames are clean (therefore preventing the inclusion of stop/unnecessary words). Since we're grouping the data by year and article, the total DEI words for each year and article will be higher than 761, as some words are used in multiple years/articles.
+
+```{r Proportion of DEI Words dfs}
+
+# calculate the total amount of DEI related words for each YEAR
+totaldeiyear <- rios_data_tokenized %>%
+  # filter for those that are DEI related
+  filter(dei_relatedit == "TRUE") %>%
+  # group by year
+  group_by(Year) %>%
+  # count the number of times each word appears, by year
+  count(inclusive_teach_tokens) %>%
+  # add the number of rows (a.k.a. the number of words) for each year
+  summarise(totaldei_by_year = n()) 
+
+# calculate the total amount of DEI related words for each ARTICLE
+totaldeiarticle <- rios_data_tokenized %>%
+  filter(dei_relatedit == "TRUE") %>%
+  group_by(article_num, Year) %>%
+  count(inclusive_teach_tokens) %>%
+  summarise(totaldei_by_article = n()) 
+
+# calculate the total amount of words in each YEAR
+totalwordsyear <- rios_data_tokenized %>%
+  group_by(Year) %>%
+  count(inclusive_teach_tokens, sort = TRUE)  %>%
+  summarise(total_by_year = n())
+
+# calculate the total amount of words in each ARTICLE
+totalwordsarticle <-  rios_data_tokenized %>%
+  group_by(article_num, Year) %>%
+  count(inclusive_teach_tokens, sort = TRUE)  %>%
+  summarise(total_by_article = n())
+
+
+# same code as above, but for 2-word phrases 
+
+# calculate the total amount of DEI related 2-word phrases for each YEAR
+total2deiyear <- rios_data_tokenized2 %>%
+  filter(dei_related == "TRUE") %>%
+  group_by(Year) %>%
+  count(it_tokens_2w) %>%
+  summarise(totaldei_by_year = n()) 
+
+# calculate the total amount of DEI related 2-word phrases for each ARTICLE
+total2deiarticle <- rios_data_tokenized2 %>%
+  filter(dei_related == "TRUE") %>%
+  group_by(article_num, Year) %>%
+  count(it_tokens_2w) %>%
+  summarise(totaldei_by_article = n()) 
+
+# calculate the total amount of 2-word phrases in each YEAR
+total2wordsyear <- rios_data_tokenized2 %>%
+  group_by(Year) %>%
+  count(it_tokens_2w, sort = TRUE)  %>%
+  summarise(total_by_year = n())
+
+# calculate the total amount of 2-word phrases in each ARTICLE
+total2wordsarticle <-  rios_data_tokenized2 %>%
+  group_by(article_num, Year) %>%
+  count(it_tokens_2w, sort = TRUE)  %>%
+  summarise(total_by_article = n())
+
+# same code as above, but for 3-word phrases 
+
+# calculate the total amount of DEI related 3-word phrases for each YEAR
+total3deiyear <- rios_data_tokenized3 %>%
+  filter(dei_related == "TRUE") %>%
+  group_by(Year) %>%
+  count(it_tokens_3w) %>%
+  summarise(totaldei_by_year = n()) 
+
+# calculate the total amount of DEI related 3-word phrases for each ARTICLE
+total3deiarticle <- rios_data_tokenized3 %>%
+  filter(dei_related == "TRUE") %>%
+  group_by(article_num, Year) %>%
+  count(it_tokens_3w) %>%
+  summarise(totaldei_by_article = n()) 
+
+# calculate the total amount of 3-word phrases in each YEAR
+total3wordsyear <- rios_data_tokenized3 %>%
+  group_by(Year) %>%
+  count(it_tokens_3w, sort = TRUE)  %>%
+  summarise(total_by_year = n())
+
+# calculate the total amount of 3-word phrases in each ARTICLE
+total3wordsarticle <-  rios_data_tokenized3 %>%
+  group_by(article_num, Year) %>%
+  count(it_tokens_3w, sort = TRUE)  %>%
+  summarise(total_by_article = n())
+
+  
+```
+
+## Box Plots {.tabset}
+
+Here's a box plot of the ratio of DEI related words, 2-word phrases and 3-word phrases by article over time with a table which goes more in depth of the statistics shown on the boxplot for each year. For some reason, the mean in 2015 is the highest across 1 word, 2-word and 3 phrases. The ratio increases as we move from 1 words to 3 words, however, there are smaller instances of phrases, which may be why the ratio is increasing. For example, for article number 16, there's only one 3-word phrase, which is labeled as DEI related, so the ratio is 100%. Nonetheless, the average ratio is slightly higher from the years 2019 to 2022 for 1 word (0.201 vs. 0.199), 2 word (0.253 vs. 0.234), and 3 word phrases (0.349 vs. 0.336).
+
+### 1 word
+
+```{r ratio boxplot and skim table}
+
+df1 <- totaldeiarticle %>%
+  full_join(totalwordsarticle, by = c("article_num", "Year")) %>%
+  # calculate the ratio of DEI "relatedness"
+  mutate(ratio = totaldei_by_article/total_by_article) %>%
+  group_by(Year)  %>% 
+  rename("Article Number" = "article_num",
+         "Total DEI By Article" = "totaldei_by_article",
+         "Total By Article" = "total_by_article",
+         "DEI Ratio 1w" = "ratio")
+
+# create a function which creates a boxplot
+ratioboxplot <- function(){
+  # factor years to reorder from oldest to most recent (to be consistent with table below)
+  rios_data$Year <- factor(rios_data$Year , levels=c("2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014"))
+  
+  # create box plot and store in function
+  boxplot(df1$`DEI Ratio 1w` ~ df1$Year, 
+          df1, 
+          xlab = "Ratio", 
+          ylab = "Year", 
+          main = "The Ratio of DEI Related Words Over Time", 
+          horizontal = TRUE,  
+          # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
+          col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"), 
+          ylim = c(0,1))
+      
+  # color and impose horizontal line of 2014 - 2018 group average ratio
+  abline(v = 0.199, col = "#b2df8a", lty = "solid", lwd = 3)
+    
+  # color and impose horizontal line of 2019 - 2022 group average ratio
+  abline(v = 0.201, col = "#1f78b4",lty = "solid", lwd = 3)
+      
+  # impose legend which explain horizontal lines
+  legend("topright", inset=.02, title="Average Ratio", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
+
+  # unfactor years
+  rios_data$Year <-  unfactor(rios_data$Year)
+}
+
+# call
+ratioboxplot()
+
+
+skim_table <- df1 %>%
+  # group by year
+  group_by(Year) %>% 
+  # present an overview only on the 'DEI Ratio' column
+  skim(starts_with("DEI")) %>% 
+  # remove the variable and completion rate column
+  select(3,6:13)  %>% 
+  # round the mean and sd columns; calculate the variance
+  mutate(numeric.mean = round(numeric.mean, digits = 2), numeric.sd = round(numeric.sd, digits = 2), variance = (numeric.sd)^2) %>% 
+  # rename all columns
+  rename("Mean" = "numeric.mean",
+         "SD" = "numeric.sd",
+         "Variance" = "variance",
+         "Min" = "numeric.p0",
+         "25 Q" = "numeric.p25",
+         "Median" = "numeric.p50",
+         "75 Q" = "numeric.p75",
+         "Max" = "numeric.p100",
+         "Histogram" = "numeric.hist") 
+
+
+df1 %>%
+  # count the number of articles for each YEAR
+  count(Year) %>% 
+  # rename column
+  rename("# of Articles" = "n") %>% 
+  # combine with skim table made above
+  full_join(skim_table, by = "Year") %>% 
+  # turn this table into a nicely formatted table
+  kable() %>% 
+  kable_minimal()
+
+```
+
+### 2 word Phrases
+
+```{r ratio boxplot and skim table for 2word}
+
+df2 <- total2deiarticle %>%
+  full_join(total2wordsarticle, by = c("article_num", "Year")) %>%
+  # calculate the ratio of DEI "relatedness"
+  mutate(ratio = totaldei_by_article/total_by_article) %>%
+  group_by(Year)  %>% 
+  rename("Article Number" = "article_num",
+         "Total DEI By Article" = "totaldei_by_article",
+         "Total By Article" = "total_by_article",
+         "DEI Ratio 2w" = "ratio")
+
+
+# create a function which creates a boxplot
+ratio2boxplot <- function(){
+  # factor years to reorder from oldest to most recent (to be consistent with table below)
+  rios_data$Year <- factor(rios_data$Year , levels=c("2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014"))
+  
+  # create box plot and store in function
+  boxplot(df2$`DEI Ratio 2w` ~ df2$Year, 
+          df2, 
+          xlab = "Ratio", 
+          ylab = "Year", 
+          main = "The Ratio of DEI Related 2-Word Phrases Over Time", 
+          horizontal = TRUE,  
+          # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
+          col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"), 
+          ylim = c(0,1))
+      
+  # color and impose horizontal line of 2014 - 2018 group average ratio
+  abline(v = 0.234, col = "#b2df8a", lty = "solid", lwd = 3)
+    
+  # color and impose horizontal line of 2019 - 2022 group average ratio
+  abline(v = 0.253, col = "#1f78b4",lty = "solid", lwd = 3)
+      
+  # impose legend which explain horizontal lines
+  legend("topright", inset=.02, title="Average Ratio", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
+
+  # unfactor years
+  rios_data$Year <-  unfactor(rios_data$Year)
+}
+
+# call
+ratio2boxplot()
+
+
+skim_table2 <- df2 %>%
+  # group by year
+  group_by(Year) %>% 
+  # present an overview only on the 'DEI Ratio' column
+  skim(starts_with("DEI")) %>% 
+  # remove the variable and completion rate column
+  select(3,6:13)  %>% 
+  # round the mean and sd columns; calculate the variance
+  mutate(numeric.mean = round(numeric.mean, digits = 2), numeric.sd = round(numeric.sd, digits = 2), variance = (numeric.sd)^2) %>% 
+  # rename all columns
+  rename("Mean" = "numeric.mean",
+         "SD" = "numeric.sd",
+         "Variance" = "variance",
+         "Min" = "numeric.p0",
+         "25 Q" = "numeric.p25",
+         "Median" = "numeric.p50",
+         "75 Q" = "numeric.p75",
+         "Max" = "numeric.p100",
+         "Histogram" = "numeric.hist") 
+
+
+df2 %>%
+  # count the number of articles for each YEAR
+  count(Year) %>% 
+  # rename column
+  rename("# of Articles" = "n") %>% 
+  # combine with skim table made above
+  full_join(skim_table2, by = "Year") %>% 
+  # turn this table into a nicely formatted table
+  kable() %>% 
+  kable_minimal()
+
+```
+
+### 3 word Phrases
+
+```{r ratio boxplot and skim table for 3word}
+
+df3 <- total3deiarticle %>%
+  full_join(total3wordsarticle, by = c("article_num", "Year")) %>%
+  # calculate the ratio of DEI "relatedness"
+  mutate(ratio = totaldei_by_article/total_by_article) %>%
+  group_by(Year)  %>% 
+  rename("Article Number" = "article_num",
+         "Total DEI By Article" = "totaldei_by_article",
+         "Total By Article" = "total_by_article",
+         "DEI Ratio 3w" = "ratio")
+
+
+# create a function which creates a boxplot
+ratio3boxplot <- function(){
+  # factor years to reorder from oldest to most recent (to be consistent with table below)
+  rios_data$Year <- factor(rios_data$Year , levels=c("2022", "2021", "2020", "2019", "2018", "2017", "2016", "2015", "2014"))
+  
+  # create box plot and store in function
+  boxplot(df3$`DEI Ratio 3w` ~ df3$Year, 
+          df3, 
+          xlab = "Ratio", 
+          ylab = "Year", 
+          main = "The Ratio of DEI Related 3-Word Phrases Over Time", 
+          horizontal = TRUE,  
+          # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
+          col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"), 
+          ylim = c(0,1))
+      
+  # color and impose horizontal line of 2014 - 2018 group average ratio
+  abline(v = 0.336, col = "#b2df8a", lty = "solid", lwd = 3)
+    
+  # color and impose horizontal line of 2019 - 2022 group average ratio
+  abline(v = 0.349, col = "#1f78b4",lty = "solid", lwd = 3)
+      
+  # impose legend which explain horizontal lines
+  legend("topright", inset=.02, title="Average Ratio", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
+
+  # unfactor years
+  rios_data$Year <-  unfactor(rios_data$Year)
+}
+
+# call
+ratio3boxplot()
+
+skim_table3 <- df3 %>%
+  # group by year
+  group_by(Year) %>% 
+  # present an overview only on the 'DEI Ratio' column
+  skim(starts_with("DEI")) %>% 
+  # remove the variable and completion rate column
+  select(3,6:13)  %>% 
+  # round the mean and sd columns; calculate the variance
+  mutate(numeric.mean = round(numeric.mean, digits = 2), numeric.sd = round(numeric.sd, digits = 2), variance = (numeric.sd)^2) %>% 
+  # rename all columns
+  rename("Mean" = "numeric.mean",
+         "SD" = "numeric.sd",
+         "Variance" = "variance",
+         "Min" = "numeric.p0",
+         "25 Q" = "numeric.p25",
+         "Median" = "numeric.p50",
+         "75 Q" = "numeric.p75",
+         "Max" = "numeric.p100",
+         "Histogram" = "numeric.hist") 
+
+
+df3 %>%
+  # count the number of articles for each YEAR
+  count(Year) %>% 
+  # rename column
+  rename("# of Articles" = "n") %>% 
+  # combine with skim table made above
+  full_join(skim_table3, by = "Year") %>% 
+  # turn this table into a nicely formatted table
+  kable() %>% 
+  kable_minimal()
+
+```
+
+##  {.unnumbered}
+
+## Line graphs {.tabset}
+
+Below are line graphs of what was presented above.
+
+### 1 word Phrase
+
+```{r Proportion of DEI Words 2, warning=FALSE, message=FALSE}
+
+# colorblind friendly palette with grey:
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+df1 %>%
+  ggplot(aes(`Article Number`, `DEI Ratio 1w`, colour = factor(Year))) +
+  geom_line() +
+  ylim(0,1) +
+  labs(y = "Ratio", title = "The Ratio of DEI Related Words By Article Number", subtitle = "(in the 'Inclusive Teaching' Section)", x = "Article Number") +
+  geom_smooth(method=lm, se=FALSE) + 
+  scale_discrete_manual(aesthetics = "colour", values = c("#40004b", "#762a83", "#9970ab", "#e7d4e8", "#d9f0d3", "#a6dba0", "#5aae61", "#1b7837", "#00441b"))
+```
+
+### 2 word Phrases
+
+```{r Proportions of DEI Phrases 2, warning=FALSE, message=FALSE}
+
+df2 %>%
+  ggplot(aes(`Article Number`, `DEI Ratio 2w`, colour = factor(Year))) +
+  geom_line() +
+  ylim(0,1) +
+  labs(y = "Ratio", title = "The Ratio of DEI Related 2-Word Phrases By Article Number", subtitle = "(in the 'Inclusive Teaching' Section)", x = "Article Number") +
+  geom_smooth(method=lm, se=FALSE) + 
+  scale_discrete_manual(aesthetics = "colour", values = c("#40004b", "#762a83", "#9970ab", "#e7d4e8", "#d9f0d3", "#a6dba0", "#5aae61", "#1b7837", "#00441b"))
+
+```
+
+### 3 word Phrases
+
+```{r Proportions of DEI Phrases 3w 2, warning=FALSE, message=FALSE}
+
+df3 %>%
+  ggplot(aes(`Article Number`, `DEI Ratio 3w`, colour = factor(Year))) +
+  geom_line() +
+  ylim(0,1) +
+  labs(y = "Ratio", title = "The Ratio of DEI Related 3-Word Phrases By Article Number", subtitle = "(in the 'Inclusive Teaching' Section)", x = "Article Number") +
+  geom_smooth(method=lm, se=FALSE) + 
+  scale_discrete_manual(aesthetics = "colour", values = c("#40004b", "#762a83", "#9970ab", "#e7d4e8", "#d9f0d3", "#a6dba0", "#5aae61", "#1b7837", "#00441b"))
+
+```
+
+##  {.unnumbered}
