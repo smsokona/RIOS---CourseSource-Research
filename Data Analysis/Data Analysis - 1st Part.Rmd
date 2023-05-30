@@ -1,5 +1,5 @@
 ---
-title: "RIOS Research - Inclusive Teaching Data Analysis"
+title: "RIOS Research - Inclusive Teaching Text Analysis - Part 1"
 author: "Sokona Mangane"
 date: "`r Sys.Date()`"
 output:
@@ -9,13 +9,13 @@ output:
 
 # Introduction
 
-My name is Sokona Mangane and I'm from Brooklyn, NY. I'm a senior at Bates College, majoring in Mathematics, and minoring in Digital and Computational Studies. In the the data cleaning folder, I created dataframes which identifies each word in the inclusive teaching section and if they should be considered JEDI (related to justice, equity, diversity, and inclusion). Below, I import the data that I cleaned to analyze the word frequency of DEI related words and how they change over time. I create tables, box plots, bar plots, and line graphs. My colleague, Yuhao helped to comment out my code, calculate statistics about the DEI % of each article. He also conducted a network analysis, which is another folder titled *Network Analysis*
+My name is Sokona Mangane and I'm from Brooklyn, NY. I'm a Bates College Alumna and majored in Mathematics, and minored in Digital and Computational Studies. Below is the research I've conducted while I was finishing my time at Bates. In the *Data Cleaning* folder, I created dataframes which identifies each word in the inclusive teaching section and if they should be considered JEDI (related to justice, equity, diversity, and inclusion). Below, I import the data from that folder to analyze the word frequency of DEI related words and how they change over time. I create tables, box plots, bar plots, and line graphs. My colleague, Yuhao helped to comment out my code and calculate statistics about the DEI % of each article. He also conducted a network analysis, which is another folder titled *Network Analysis*.
 
 # Setup
 
 I import the necessary packages (same code in the Data Cleaning markdown in the *Data Cleaning* folder).
 
-```{r install and load packages, message=FALSE, warning=FALSE}
+```{r install and load packages, message=FALSE, warning=FALSE, results='hide'}
 
 # store string containing all required packages
 my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC", "knitr", "ggrepel", "ggtext", "showtext", "rcartocolor", "gridExtra", "cowplot")
@@ -44,9 +44,8 @@ lapply(need_load, require, character.only = TRUE)
 
 Below I specify global options that I want for all of my code chunks.
 
-```{r setup-chunk, include=FALSE}
-knitr::opts_chunk$set(dpi = 300, # save the PNGs at a nice high quality please, at 300 pi
-                      cache = TRUE, 
+```{r setup-chunk, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(cache = FALSE, 
                       warning = FALSE, # doesn't print warnings 
                       message = FALSE) # doesn't print messages
 ```
@@ -80,23 +79,23 @@ Yuhao creates a column of the percentage of DEI words for each article.
 
 ```{r paper-wise stats}
 
-# # store a vector of 256 zero's (the length of our data frame, to be replaced below)
-# DEI_count<-rep(0, 256)
-# 
-# # count the amount of DEI words in each article and store the count in the vector above
-# for(i in 1:length(DEI_count)){
-#   for (k in 1:length(rios_data_tokenized$Title)){
-#     if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$article_num[k] == rios_data$article_num[i] ){
-#       DEI_count[i]=DEI_count[i]+1
-#     }
-#   }
-# }
-# 
-# # store the DEI count in the df
-# rios_data$`DEI Word count` <- DEI_count
-# 
-# # calculate and store the % of DEI words in the df
-# rios_data$`DEI Words %` <-(rios_data$DEI_count/rios_data$`Word Count of Inclusive Teaching?`)*100
+# store a vector of 256 zero's (the length of our data frame, to be replaced below)
+DEI_count<-rep(0, nrow(rios_data))
+
+# count the amount of DEI words in each article and store the count in the vector above
+for(i in 1:length(DEI_count)){
+  for (k in 1:length(rios_data_tokenized$Title)){
+    if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$article_num[k] == rios_data$article_num[i] ){
+      DEI_count[i]=DEI_count[i]+1
+    }
+  }
+}
+
+# store the DEI count in the df
+rios_data$`DEI Word count` <- DEI_count
+
+# calculate and store the % of DEI words in the df
+rios_data$`DEI_Words_%` <-(rios_data$`DEI Word count`/rios_data$`Word Count of Inclusive Teaching?`)*100
 
 ```
 
@@ -106,7 +105,7 @@ Yuhao creates a column of the percentage of DEI words for each article.
 
 The boxplot below visualizes the word count of the Inclusive Teaching Section over time. The Word count increases in the 2019-2022 group compared to the years prior, and we also start to see more outliers. To more clearly see the shift before and after 2018, I also create a bar plot of the average word count, comparing the word count before and after 2018. I also conduct a one-sample t-test. Overall, since the creation of Course Source, the word count of the Inclusive Teaching Section has increased.
 
-```{r wrd ct boxplot and barchart, dev = "png"}
+```{r wrd ct boxplot and barchart, dev = "png", dpi = 300}
 
 ## Code for box plot
 
@@ -122,6 +121,9 @@ wrdctboxplot <- function(){
           horizontal = TRUE, 
           # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
           col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"))
+  
+  # label box plot and make title left-aligned
+  title("A", adj = 0)
     
   # color and impose horizontal line of 2014 - 2018 group average word count
   abline(v = 118.4868, col = "#b2df8a", lty = "solid", lwd = 3)
@@ -147,7 +149,8 @@ data <- rios_data %>%
             sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% 
   # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
   mutate(se = sd/sqrt(n), 
-         ic = se * qt((1-0.05)/2 + 0.5, n-1)) 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1))
+
 
 # A function to add arrows on the chart
 error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
@@ -161,7 +164,7 @@ par(mfrow = c(1,2), cex = 0.6, mai = c(0.7,0.75,0.3,0.4))
 par(fig = c(0,0.68,0,1), new = TRUE)
 
 # run box plot
-wrdctboxplot() 
+wrdctboxplot()
 
 # define area for bar plot
 par(fig=c(0.6,1,0,1), new = TRUE)
@@ -175,6 +178,8 @@ error.bar(base_barplot, data$Avg_Wrd_Ct, data$ic)
 # rotate the x axis on the barplot
 text(base_barplot, par("usr")[3], srt = 45, labels = c("2014 - 2018", "2019 - 2022") , adj = c(1.1,1.1), xpd = TRUE, cex=.79)
 
+# label bar plot and make title left-aligned
+title("B", adj = 0)
 
 # conduct a one sample t-test
 testbygroupyr <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Group Year`, data = rios_data)
@@ -186,7 +191,7 @@ testbygroupyr #p-value = 1.557e-10, confidence interval:  -126.37537  -68.78427,
 
 Presented below is an in-depth look at what's visualized above.
 
-```{r wrd ct skim table, dev='png'}
+```{r wrd ct skim table, dev='png', dpi = 300}
 
 # create skim() table
 rios_data %>% 
@@ -219,10 +224,10 @@ rios_data %>%
 
 Here I create a plot of the average word count comparing the word count for articles which include authors that attended CourseSource workshops and those that didn't. I also conduct a one-sample t-test. Overall, the word count for those who've attended workshops are higher.
 
-```{r avg. wrd ct bar plot by workshop attendance, dev='png'}
+```{r avg. wrd ct bar plot by workshop attendance, dev='png', dpi = 300}
 
-# create bar plot
-rios_data %>% 
+# store data for bar plot
+data1 <- rios_data %>% 
   group_by(`Attended Workshop?`) %>% 
   # calculate avg. wrd ct, length, and standard deviation for each group
   summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), 
@@ -230,17 +235,13 @@ rios_data %>%
             sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% 
   # calculate the standard error and the standard error multiplied by the value of the t-distribution for 0.5
   mutate(se = sd/sqrt(n), 
-         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% 
-  ggplot(aes(`Attended Workshop?`, Avg_Wrd_Ct, fill = `Attended Workshop?`)) +
-  geom_col() + 
-  labs(title = "Average Word Count of Inclusive Teaching Section", subtitle = "By Attendance Type", x = "Attendance Type", y = "Average Word Count") + 
-  # manually color groups (color blind safe colors) 
-  scale_fill_manual(values = c("#a6cee3", "#1f78b4")) + 
-  # create confidence intervals 
-  geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4) +
-  # reorder categorical x axis
-  scale_x_discrete(limits = rev(levels(rios_data$`Attended Workshop?`)))
-  
+         ic = se * qt((1-0.05)/2 + 0.5, n-1))
+
+# store the base barplot in a variable 
+base_barplot1 <- barplot(data1$Avg_Wrd_Ct ~ data1$`Attended Workshop?`, axis.lty = 1, ylim = c(0,320), col = c("#a6cee3", "#1f78b4"), xlab = "Attendance Type", ylab = "Average Word Count", names.arg = data1$`Attended Workshop?`)
+
+# add the error bar on the plot using my "error bar" function and run
+error.bar(base_barplot1, data1$Avg_Wrd_Ct, data1$ic)
 
 # conduct a one sample t-test
 testbyattendance <- t.test(formula = `Word Count of Inclusive Teaching?` ~ `Attended Workshop?`, data = rios_data)
@@ -254,17 +255,14 @@ testbyattendance #p-value = 0.01227, confidence interval (difference btw. means)
 
 Below, I create a plot of the average *JEDI* word count, comparing the word count for articles which include authors that attended CourseSource workshops and those that didn't and also conduct a one-sample t-test. Although the average JEDI word count is much lower here, we can see that those who've attended workshops have a relatively higher average word count, like we see above.
 
-```{r}
+```{r avg. dei wrd ct bar plot by workshop attendance, dev='png', dpi = 300}
 
 # calculate total DEI related words for each article, and store in dataframe
-dei_by_workshop <- rios_data_tokenized %>% 
+dei_by_workshop_data <- rios_data_tokenized %>% 
   filter(dei_relatedit == "TRUE") %>%
   group_by(article_num, `Attended Workshop?`) %>% 
-  count(inclusive_teach_tokens) %>% 
-  summarise(totaldeia = n())
-
-# create bar plot
-dei_by_workshop %>% 
+  count(inclusive_teach_tokens, sort = TRUE) %>% 
+  summarise(totaldeia = n()) %>% 
   group_by(`Attended Workshop?`) %>% 
   # calculate avg. wrd ct, length, and standard deviation for each group
   summarise(Avg_word_count = mean(totaldeia), 
@@ -272,20 +270,20 @@ dei_by_workshop %>%
             sd = sd(totaldeia, na.rm = TRUE)) %>% 
   # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
   mutate(se = sd/sqrt(n), 
-         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% 
-  ggplot(aes(`Attended Workshop?`, Avg_word_count, fill = `Attended Workshop?`)) +
-  geom_col() + 
-  labs(title = "Average (DEI related) Word Count of Inclusive Teaching Section", subtitle = "By Attendance Type", x = "Attendance Type", y = "Average Word Count") + 
-  # manually color groups (color blind safe colors) 
-  scale_fill_manual(values = c("#a6cee3", "#1f78b4")) + 
-  # create confidence intervals 
-  geom_errorbar(aes(x = `Attended Workshop?`, ymin = Avg_word_count - ic, ymax = Avg_word_count + ic), width = 0.4) 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1))
 
-# conduct a one sample t-test
-jeditestbyattendance <- t.test(formula = totaldeia ~ `Attended Workshop?`, data = dei_by_workshop)
+# store the base barplot in a variable 
+base_barplot2 <- barplot(dei_by_workshop_data$Avg_word_count ~ dei_by_workshop_data$`Attended Workshop?`, axis.lty = 1, ylim = c(0,25), col = c("#a6cee3", "#1f78b4"), xlab = "Attendance Type", ylab = "Average Word Count", names.arg = dei_by_workshop_data$`Attended Workshop?`)
 
-# print
-jeditestbyattendance #p-value = 0.02788, confidence interval (difference btw. means):  -8.1950137 -0.4900862, df = 54.354
+# add the error bar on the plot using my "error bar" function and run
+error.bar(base_barplot2, dei_by_workshop_data$Avg_word_count, dei_by_workshop_data$ic)
+
+
+# # conduct a one sample t-test
+# jeditestbyattendance <- t.test(formula = totaldeia ~ `Attended Workshop?`, data = dei_by_workshop_data)
+# 
+# # print
+# jeditestbyattendance #p-value = 0.02788, confidence interval (difference btw. means):  -8.1950137 -0.4900862, df = 54.354
 
 ```
 
@@ -297,7 +295,7 @@ About 17% of words in the Inclusive Teaching Text are DEI related (761/4,469). L
 
 However, it's no surprise that students is the most common, as authors will inevitably have to mention how their article is inclusive of *students*. Additionally, the title of this section for which these descriptions are under is called "Inclusive Teaching", so one could have a lengthy description under this section, without including any of the words from `dei_keywords` and then mention "inclusive teaching" to be included in this category.
 
-```{r top 15 common dei words, dev='png'}
+```{r top 15 common dei words, dev='png', dpi = 300}
 
 # print out top 15 most common DEI related words, USE KABLE()
 rios_data_tokenized %>%
@@ -311,7 +309,6 @@ rios_data_tokenized %>%
   # turn this table into a nicely formatted table
   kable() %>% 
   kable_minimal()
-  
 
 ```
 
@@ -372,13 +369,13 @@ rios_data_tokenized3 %>%
 
 ```
 
-## In Depth Bar Chart & Line graph of Word Freuqency Over Time
+## In Depth Bar Chart & Line graph of Word Frequency Over Time
 
 Below is a bar chart that looks more in depth into the frequency of words being used, each year. As mentioned above, the word *students* is an outlier, so I use the log of the word counts. I return the top 10 most common words in each year (which should return 90 words) and then return the \*unique\* words of the 90. We can see the diversity of words increases, beginning in 2019. I also create a line graph, which highlights the words that are used more frequently after 2018. This is consistent with the visualizations above.
 
 To more clearly see the words and their *actual* word counts each year, click each tab in the next section below.
 
-```{r barplot and line graph of wrd ct over time, dev='png', warning=FALSE, message = FALSE}
+```{r barplot and line graph of wrd ct over time, dev='png', dpi = 300, warning=FALSE, message = FALSE}
 
 ## Code for Bar Chart
 
@@ -410,7 +407,7 @@ top_10_distinct <- c(t(top_10_distinct))
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) + 
-   scale_x_discrete(labels = NULL, breaks = NULL) + labs(x = " ") +
+   scale_x_discrete(labels = NULL, breaks = NULL) + labs(title = "A", x = " ") +
   # change the theme
    theme_minimal()
  
@@ -426,8 +423,8 @@ dei_word_counts <- dei_word_counts %>%
   filter(inclusive_teach_tokens != "students") %>% 
   mutate(Word = if_else(inclusive_teach_tokens %in% highlights, inclusive_teach_tokens, "other"),
          Word = as.factor(Word)) %>% 
-  mutate(Word = fct_relevel(Word, "other", after = Inf),
-         name_lab = if_else(Year == 2021, inclusive_teach_tokens, NA_character_)) 
+  mutate(Word = fct_relevel(Word, "other", after = Inf))
+# , name_lab = if_else(Year == 2021, inclusive_teach_tokens, NA_character_)
 
 # create line graph s
 base_lineplot <- ggplot(
@@ -446,30 +443,32 @@ base_lineplot <- ggplot(
   geom_line(
     aes(color = Word),
     size = 0.9
-  ) +
-  # use ggrepel package to automatically place labels
-  geom_text_repel(
-    aes(color = Word, label = name_lab),
-    family = "Lato",
-    fontface = "bold",
-    size = 3,
-    direction = "y",
-    hjust = 0,
-    segment.size = .7,
-    segment.alpha = .5,
-    segment.linetype = "dotted",
-    box.padding = .4,
-    segment.curvature = -0.1,
-    segment.ncp = 3,
-    segment.angle = 20,
-    show.legend = FALSE
-  )  +
+   ) +
+  # # use ggrepel package to automatically place labels
+  # geom_text_repel(
+  #   aes(color = Word, label = name_lab),
+  #   family = "Lato",
+  #   fontface = "bold",
+  #   size = 3,
+  #   direction = "y",
+  #   hjust = 0,
+  #   segment.size = .7,
+  #   segment.alpha = .5,
+  #   segment.linetype = "dotted",
+  #   box.padding = .4,
+  #   segment.curvature = -0.1,
+  #   segment.ncp = 3,
+  #   segment.angle = 20,
+  #   show.legend = FALSE
+  # )  +
   # labels
-  labs(x = "Year", y = "Word Count") + 
+  labs(title = "B", x = "Year", y = "Word Count") + 
   # remove "a" from legend box
   theme(legend.position = "none") +
   # change the theme
   theme_minimal() +
+  # remove legend
+  guides(fill = "none") + 
   # add colorblind safe palette
   scale_color_manual(values = c("#40004b", "#762a83", "#9970ab", "#c51b7d", "#543005", "#053061", "#a6dba0", "#5aae61", "#1b7837", "#00441b"))
 
@@ -477,6 +476,8 @@ base_lineplot <- ggplot(
 # arrange two plots into one column
  require(gridExtra)
  grid.arrange(base_bargraph_over_time, base_lineplot, heights=c(3,2))
+
+#plot_grid(base_bargraph_over_time, base_lineplot, labels = c('A', 'B'), label_size = 12)
 
 ```
 

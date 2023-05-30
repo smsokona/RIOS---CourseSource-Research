@@ -1,5 +1,5 @@
 ---
-title: "Inclusive Teaching Text Analysis Part II"
+title: "Inclusive Teaching Text Analysis - Part 2"
 author: "Yuhao Zhao"
 date: "2022-12-14"
 output:
