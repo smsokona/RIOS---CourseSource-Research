@@ -81,40 +81,20 @@ Yuhao creates a column of the percentage of DEI words for each article.
 # store a vector of 256 zero's (the length of our data frame, to be replaced below)
 DEI_count<-rep(0, nrow(rios_data))
 
-# REALIZE THERE MAY NOT NECCESSARILY BE AN ERROR BUT YUHAO IS USING THE WORD COUNT FROM THE EXCEL SHEET WHICH MAY INCLUDE STOP WORDS..HOWEVER THE DEI WORD COUNT IS STILL PRETTY HIGH...
+# count the amount of DEI words in each article and store the count in the vector above
+for(i in 1:length(DEI_count)){
+  for (k in 1:length(rios_data_tokenized$Title)){
+    if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$article_num[k] == rios_data$article_num[i] ){
+      DEI_count[i]=DEI_count[i]+1
+    }
+  }
+}
 
-# COMMENTING OUT YUHAO'S CODE BC I DON'T THINK IT'S CORRECT... SEE CODE BELOW
-# # count the amount of DEI words in each article and store the count in the vector above
-# for(i in 1:length(DEI_count)){
-#   for (k in 1:length(rios_data_tokenized$Title)){
-#     if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$Title[k] == rios_data$Title[i] ){
-#       DEI_count[i]=DEI_count[i]+1
-#     }
-#   }
-# }
-# 
-# # store the DEI count in the df
-# rios_data$`DEI Word count` <- DEI_count
-# 
-# # calculate and store the % of DEI words in the df
-# rios_data$`DEI_Words_%` <-(rios_data$`DEI Word count`/rios_data$`Word Count of Inclusive Teaching?`)*100
-# 
-# WHEN I PRINT `rios_data$`DEI Word count``, FOR ARRTICLE NO. 5 AND 6. THEIR DEI WORD COUNT IS 26 AND 41 RESPECTIVELY, HOWEVER, WHEN I PRINT THE CODE BELOW, I GET DISCREPENCIES.
-# # article 5: 4 vs 26, article 6: 9 vs 41
-# rios_data_tokenized %>%
-#   filter(dei_relatedit == "TRUE") %>%
-#   count(article_num)
-# 
-# rios_data_tokenized %>% 
-#   filter(article_num == 5 & dei_relatedit == "TRUE")
-# 
-# rios_data_tokenized %>% 
-#   filter(article_num == 6 & dei_relatedit == "TRUE")
+# store the DEI count in the df
+rios_data$`DEI Word count` <- DEI_count
 
-# USE ORIGINAL BOX PLOT CODE, NOT CODE FROM LAST NIGHT, BUT EDIT CODE ABOVE AND SHOW YUHAO DISCREPENCY 
-
-rios_data %>% 
-  select(9,11,13)
+# calculate and store the % of DEI words in the df
+rios_data$`DEI_Words_%` <-(rios_data$`DEI Word count`/rios_data$`Word Count of Inclusive Teaching?`)*100
 
 ```
 
@@ -272,37 +252,33 @@ testbyattendance #p-value = 0.01227, confidence interval (difference btw. means)
 
 ### Average *JEDI* Word Count for Workshop Attendees
 
-Below, I create a plot of the average *JEDI* word count, comparing the word count for articles which include authors that attended CourseSource workshops and those that didn't and also conduct a one-sample t-test. Although the average JEDI word count is much lower here, we can see that those who've attended workshops have a relatively higher average word count, like we see above.
+Below, I create a plot of the average *JEDI* word count, comparing the word count for articles which include authors that attended CourseSource workshops and those that didn't. I also conduct a one-sample t-test. Although the average JEDI word count is much lower here, we can see that those who've attended workshops have a relatively higher average word count, like we see above.
 
 ```{r avg. dei wrd ct bar plot by workshop attendance, dev='png', dpi = 300}
 
-# calculate total DEI related words for each article, and store in dataframe
-dei_by_workshop_data <- rios_data_tokenized %>% 
-  filter(dei_relatedit == "TRUE") %>%
-  group_by(article_num, `Attended Workshop?`) %>% 
-  count(inclusive_teach_tokens, sort = TRUE) %>% 
-  summarise(totaldeia = n()) %>% 
+# store data for bar plot
+dei_by_workshop_data <- rios_data %>% 
   group_by(`Attended Workshop?`) %>% 
   # calculate avg. wrd ct, length, and standard deviation for each group
-  summarise(Avg_word_count = mean(totaldeia), 
+  summarise(Avg_word_count = mean(`DEI Word count`, na.rm = TRUE), 
             n = n(),
-            sd = sd(totaldeia, na.rm = TRUE)) %>% 
+            sd = sd(`DEI Word count`, na.rm = TRUE)) %>% 
   # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
   mutate(se = sd/sqrt(n), 
          ic = se * qt((1-0.05)/2 + 0.5, n-1))
 
 # store the base barplot in a variable 
-base_barplot2 <- barplot(dei_by_workshop_data$Avg_word_count ~ dei_by_workshop_data$`Attended Workshop?`, axis.lty = 1, ylim = c(0,25), col = c("#a6cee3", "#1f78b4"), xlab = "Attendance Type", ylab = "Average Word Count", names.arg = dei_by_workshop_data$`Attended Workshop?`)
+base_barplot2 <- barplot(dei_by_workshop_data$Avg_word_count ~ dei_by_workshop_data$`Attended Workshop?`, axis.lty = 1, ylim = c(0,40), col = c("#a6cee3", "#1f78b4"), xlab = "Attendance Type", ylab = "Average Word Count", names.arg = dei_by_workshop_data$`Attended Workshop?`)
 
 # add the error bar on the plot using my "error bar" function and run
 error.bar(base_barplot2, dei_by_workshop_data$Avg_word_count, dei_by_workshop_data$ic)
 
 
-# # conduct a one sample t-test
-# jeditestbyattendance <- t.test(formula = totaldeia ~ `Attended Workshop?`, data = dei_by_workshop_data)
-# 
-# # print
-# jeditestbyattendance #p-value = 0.02788, confidence interval (difference btw. means):  -8.1950137 -0.4900862, df = 54.354
+# conduct a one sample t-test
+jeditestbyattendance <- t.test(formula = `DEI Word count` ~ `Attended Workshop?`, data = rios_data)
+
+# print
+jeditestbyattendance #p-value = 0.02788, confidence interval (difference btw. means):  -8.1950137 -0.4900862, df = 54.354
 
 ```
 
@@ -904,7 +880,7 @@ dei_word_counts %>%
 
 Which articles and years has the highest proportion of DEI related *words* and *phrases*? How does this proportion change?
 
-Looking at proportions gives us an idea of how many DEI words are being used and if there is a change over time. Below, I calculate the number of DEI related words for each article and year. Then, I divided those numbers by the total amount of words for each article and year to get a proportion. This process is similar to what Yuhao does (see [Paper-wise statistics]), however I use the data frames: `rios_data_tokenized`, `rios_data_tokenized2`, and `rios_data_tokenized3`. This way I can calculate the total number of phrases (by counting the number of rows) and also have a more accurate ratio, since these data frames are clean (therefore preventing the inclusion of stop/unnecessary words). Since we're grouping the data by year and article, the total DEI words for each year and article will be higher than 761, as some words are used in multiple years/articles.
+Looking at proportions gives us an idea of how many DEI words are being used and if there is a change over time. Below, I calculate the number of DEI related words for each article and year. Then, I divided those numbers by the total amount of words for each article and year to get a proportion. This process is similar to what Yuhao does (see [Paper-wise statistics]), however I use the data frames: `rios_data_tokenized`, `rios_data_tokenized2`, and `rios_data_tokenized3`. This way I can calculate the total number of phrases (by counting the number of rows) and also have a more accurate ratio, since these data frames are clean (therefore preventing the inclusion of stop/unnecessary words). Additionally, the process I use below counts the number of distinct words, whereas, Yuhao's process counts all words total. Since we're grouping the data by year and article, the total DEI words for each year and article will be higher than 761, as some words are used in multiple years/articles.
 
 ```{r Proportion of DEI Words dfs}
 
@@ -925,19 +901,6 @@ totaldeiarticle <- rios_data_tokenized %>%
   group_by(article_num, Year) %>%
   count(inclusive_teach_tokens) %>%
   summarise(totaldei_by_article = n())
-
-# SIMILAR CODE AS ABOVE, BUT COUNT'S DUPLICATES (CODE ABOVE COUNT DISTINCT DEI WORDS AND TOTAL WORDS)
-totaldeiarticle1 <- rios_data_tokenized %>%
-  filter(dei_relatedit == "TRUE") %>%
-  count(article_num)
-
-totalwordsarticle1 <- rios_data_tokenized %>% 
-  count(article_num)
-
-totaldeiarticle1 %>%
-  full_join(totalwordsarticle1, by = c("article_num")) %>%
-  # calculate the ratio of DEI "relatedness"
-  mutate(ratio = n.x/n.y)
 
 # calculate the total amount of words in each YEAR
 totalwordsyear <- rios_data_tokenized %>%
@@ -979,6 +942,7 @@ total2wordsarticle <-  rios_data_tokenized2 %>%
   group_by(article_num, Year) %>%
   count(it_tokens_2w, sort = TRUE)  %>%
   summarise(total_by_article = n())
+
 
 # same code as above, but for 3-word phrases 
 
