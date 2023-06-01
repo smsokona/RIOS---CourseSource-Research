@@ -45,8 +45,7 @@ lapply(need_load, require, character.only = TRUE)
 Below I specify global options that I want for all of my code chunks.
 
 ```{r setup-chunk, message=FALSE, warning=FALSE}
-knitr::opts_chunk$set(cache = FALSE, 
-                      warning = FALSE, # doesn't print warnings 
+knitr::opts_chunk$set(warning = FALSE, # doesn't print warnings 
                       message = FALSE) # doesn't print messages
 ```
 
@@ -82,20 +81,40 @@ Yuhao creates a column of the percentage of DEI words for each article.
 # store a vector of 256 zero's (the length of our data frame, to be replaced below)
 DEI_count<-rep(0, nrow(rios_data))
 
-# count the amount of DEI words in each article and store the count in the vector above
-for(i in 1:length(DEI_count)){
-  for (k in 1:length(rios_data_tokenized$Title)){
-    if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$article_num[k] == rios_data$article_num[i] ){
-      DEI_count[i]=DEI_count[i]+1
-    }
-  }
-}
+# REALIZE THERE MAY NOT NECCESSARILY BE AN ERROR BUT YUHAO IS USING THE WORD COUNT FROM THE EXCEL SHEET WHICH MAY INCLUDE STOP WORDS..HOWEVER THE DEI WORD COUNT IS STILL PRETTY HIGH...
 
-# store the DEI count in the df
-rios_data$`DEI Word count` <- DEI_count
+# COMMENTING OUT YUHAO'S CODE BC I DON'T THINK IT'S CORRECT... SEE CODE BELOW
+# # count the amount of DEI words in each article and store the count in the vector above
+# for(i in 1:length(DEI_count)){
+#   for (k in 1:length(rios_data_tokenized$Title)){
+#     if( rios_data_tokenized$dei_relatedit[k] == "TRUE" && rios_data_tokenized$Title[k] == rios_data$Title[i] ){
+#       DEI_count[i]=DEI_count[i]+1
+#     }
+#   }
+# }
+# 
+# # store the DEI count in the df
+# rios_data$`DEI Word count` <- DEI_count
+# 
+# # calculate and store the % of DEI words in the df
+# rios_data$`DEI_Words_%` <-(rios_data$`DEI Word count`/rios_data$`Word Count of Inclusive Teaching?`)*100
+# 
+# WHEN I PRINT `rios_data$`DEI Word count``, FOR ARRTICLE NO. 5 AND 6. THEIR DEI WORD COUNT IS 26 AND 41 RESPECTIVELY, HOWEVER, WHEN I PRINT THE CODE BELOW, I GET DISCREPENCIES.
+# # article 5: 4 vs 26, article 6: 9 vs 41
+# rios_data_tokenized %>%
+#   filter(dei_relatedit == "TRUE") %>%
+#   count(article_num)
+# 
+# rios_data_tokenized %>% 
+#   filter(article_num == 5 & dei_relatedit == "TRUE")
+# 
+# rios_data_tokenized %>% 
+#   filter(article_num == 6 & dei_relatedit == "TRUE")
 
-# calculate and store the % of DEI words in the df
-rios_data$`DEI_Words_%` <-(rios_data$`DEI Word count`/rios_data$`Word Count of Inclusive Teaching?`)*100
+# USE ORIGINAL BOX PLOT CODE, NOT CODE FROM LAST NIGHT, BUT EDIT CODE ABOVE AND SHOW YUHAO DISCREPENCY 
+
+rios_data %>% 
+  select(9,11,13)
 
 ```
 
@@ -905,7 +924,20 @@ totaldeiarticle <- rios_data_tokenized %>%
   filter(dei_relatedit == "TRUE") %>%
   group_by(article_num, Year) %>%
   count(inclusive_teach_tokens) %>%
-  summarise(totaldei_by_article = n()) 
+  summarise(totaldei_by_article = n())
+
+# SIMILAR CODE AS ABOVE, BUT COUNT'S DUPLICATES (CODE ABOVE COUNT DISTINCT DEI WORDS AND TOTAL WORDS)
+totaldeiarticle1 <- rios_data_tokenized %>%
+  filter(dei_relatedit == "TRUE") %>%
+  count(article_num)
+
+totalwordsarticle1 <- rios_data_tokenized %>% 
+  count(article_num)
+
+totaldeiarticle1 %>%
+  full_join(totalwordsarticle1, by = c("article_num")) %>%
+  # calculate the ratio of DEI "relatedness"
+  mutate(ratio = n.x/n.y)
 
 # calculate the total amount of words in each YEAR
 totalwordsyear <- rios_data_tokenized %>%
