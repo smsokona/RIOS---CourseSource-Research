@@ -221,6 +221,7 @@ I do the same thing I did above, but for *2-word phrases*.
 # split the text from the `inclusive teaching description` column into a two-token-per-row format
 rios_data_token2it <- rios_data %>%
   unnest_tokens(it_tokens_2w, `Inclusive Teaching Description`, token = "ngrams", n = 2)  %>%
+  # separate the 2 word tokens into it's own word, and put them in `word1` and `word2` columns
   separate(it_tokens_2w, c("word1", "word2"), sep = " ")
 
 # remove ~33,673 rows of english lang. stopwords and then unite the words

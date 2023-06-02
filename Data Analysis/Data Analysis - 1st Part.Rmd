@@ -175,7 +175,7 @@ base_barplot <- barplot(data$Avg_Wrd_Ct ~ data$`Group Year`, axis.lty = 1, ylim 
 error.bar(base_barplot, data$Avg_Wrd_Ct, data$ic)
 
 # rotate the x axis on the barplot
-text(base_barplot, par("usr")[3], srt = 45, labels = c("2014 - 2018", "2019 - 2022") , adj = c(1.1,1.1), xpd = TRUE, cex=.79)
+text(base_barplot, par("usr")[3], srt = 45, labels = c("2014-18", "2019-22") , adj = c(1.1,1.1), xpd = TRUE, cex=.79)
 
 # label bar plot and make title left-aligned
 title("B", adj = 0)
@@ -880,118 +880,150 @@ dei_word_counts %>%
 
 Which articles and years has the highest proportion of DEI related *words* and *phrases*? How does this proportion change?
 
-Looking at proportions gives us an idea of how many DEI words are being used and if there is a change over time. Below, I calculate the number of DEI related words for each article and year. Then, I divided those numbers by the total amount of words for each article and year to get a proportion. This process is similar to what Yuhao does (see [Paper-wise statistics]), however I use the data frames: `rios_data_tokenized`, `rios_data_tokenized2`, and `rios_data_tokenized3`. This way I can calculate the total number of phrases (by counting the number of rows) and also have a more accurate ratio, since these data frames are clean (therefore preventing the inclusion of stop/unnecessary words). Additionally, the process I use below counts the number of distinct words, whereas, Yuhao's process counts all words total. Since we're grouping the data by year and article, the total DEI words for each year and article will be higher than 761, as some words are used in multiple years/articles.
+Looking at proportions gives us an idea of how many DEI words are being used and if there is a change over time. Below, I calculate the number of DEI related words for each article and year. Then, I divided those numbers by the total amount of words for each article and year to get a proportion. Based on what Yuhao calculated in section [Paper-wise statistics], we already have a column which gives the total amount of DEI related words for each article, and the ratio. I use this column to calculate the total amount of DEI related words for each *year*. Since I want to calculate the total amount of words (including stopwords), for 2-word and 3-word phrases I repeated some of my analyses done in the *Data Cleaning* RMD. I couldn't use the `rios_data_tokenized2`, and `rios_data_tokenized3` dataframes, since they're cleaned and don't contain stopwords. The total amount of words and DEI related words I calculate are not *distinct* and include duplicates.
 
 ```{r Proportion of DEI Words dfs}
 
 # calculate the total amount of DEI related words for each YEAR
-totaldeiyear <- rios_data_tokenized %>%
-  # filter for those that are DEI related
-  filter(dei_relatedit == "TRUE") %>%
+totaldeiyear <- rios_data %>% 
   # group by year
-  group_by(Year) %>%
-  # count the number of times each word appears, by year
-  count(inclusive_teach_tokens) %>%
-  # add the number of rows (a.k.a. the number of words) for each year
-  summarise(totaldei_by_year = n()) 
+  group_by(Year) %>% 
+  # select the `DEI Word Count` column
+  select(13) %>% 
+  # add the DEI Word Count column for each year
+  summarise(totaldei_by_year = sum(`DEI Word count`, na.rm = FALSE))
 
 # calculate the total amount of DEI related words for each ARTICLE
-totaldeiarticle <- rios_data_tokenized %>%
-  filter(dei_relatedit == "TRUE") %>%
-  group_by(article_num, Year) %>%
-  count(inclusive_teach_tokens) %>%
-  summarise(totaldei_by_article = n())
+
+# rios_data %>%
+#   select(11, 13)
 
 # calculate the total amount of words in each YEAR
-totalwordsyear <- rios_data_tokenized %>%
+totalwordsyear <- rios_data %>%
+  # group by year
   group_by(Year) %>%
-  count(inclusive_teach_tokens, sort = TRUE)  %>%
-  summarise(total_by_year = n())
+  # select the `Word Count` column
+  select(9) %>% 
+  # add the Word Count column for each year
+  summarise(total_by_year = sum(`Word Count of Inclusive Teaching?`))
 
 # calculate the total amount of words in each ARTICLE
-totalwordsarticle <-  rios_data_tokenized %>%
-  group_by(article_num, Year) %>%
-  count(inclusive_teach_tokens, sort = TRUE)  %>%
-  summarise(total_by_article = n())
+
+# rios_data %>% 
+#   select(9)
 
 
-# same code as above, but for 2-word phrases 
+# 2-word phrases 
 
 # calculate the total amount of DEI related 2-word phrases for each YEAR
 total2deiyear <- rios_data_tokenized2 %>%
+  # filter for words labeled as DEI related
   filter(dei_related == "TRUE") %>%
+  # group by year
   group_by(Year) %>%
-  count(it_tokens_2w) %>%
-  summarise(totaldei_by_year = n()) 
+  # count the number of times each article appears
+  count(article_num) %>%
+  # add the number of times the article appears for each year
+  summarise(totaldei_by_year = sum(n)) 
 
 # calculate the total amount of DEI related 2-word phrases for each ARTICLE
 total2deiarticle <- rios_data_tokenized2 %>%
+  # filter for words labeled as DEI related
   filter(dei_related == "TRUE") %>%
+  # group by article no. & year
   group_by(article_num, Year) %>%
-  count(it_tokens_2w) %>%
-  summarise(totaldei_by_article = n()) 
+  # count the number of times each article appears
+  count(article_num) 
+
+# store unnecessary punctuation or digits in a vector for removal
+strings <- c("[:punct:]", "[:digit:]","\\(","\\)")
 
 # calculate the total amount of 2-word phrases in each YEAR
-total2wordsyear <- rios_data_tokenized2 %>%
-  group_by(Year) %>%
-  count(it_tokens_2w, sort = TRUE)  %>%
-  summarise(total_by_year = n())
+total2wordsyear <- rios_data %>%
+  # split the text from the `inclusive teaching description` column into a two-token-per-row format
+  unnest_tokens(it_tokens_2w, `Inclusive Teaching Description`, token = "ngrams", n = 2)  %>%
+  # remove ~1,390 rows of punctuation and digits
+  filter(!str_detect(it_tokens_2w, paste(strings, collapse = "|"))) %>% 
+  # group by year
+  group_by(Year) %>% 
+  # count the total in each year
+  tally()
 
 # calculate the total amount of 2-word phrases in each ARTICLE
-total2wordsarticle <-  rios_data_tokenized2 %>%
-  group_by(article_num, Year) %>%
-  count(it_tokens_2w, sort = TRUE)  %>%
-  summarise(total_by_article = n())
+total2wordsarticle <-  rios_data %>%
+  # split the text from the `inclusive teaching description` column into a two-token-per-row format
+  unnest_tokens(it_tokens_2w, `Inclusive Teaching Description`, token = "ngrams", n = 2)  %>%
+  # remove ~1,390 rows of punctuation and digits
+  filter(!str_detect(it_tokens_2w, paste(strings, collapse = "|"))) %>% 
+  # group by article no.
+  group_by(article_num) %>% 
+  # count the total in each article
+  tally()
 
 
 # same code as above, but for 3-word phrases 
 
 # calculate the total amount of DEI related 3-word phrases for each YEAR
 total3deiyear <- rios_data_tokenized3 %>%
+  # filter for words labeled as DEI related
   filter(dei_related == "TRUE") %>%
+  # group by year
   group_by(Year) %>%
-  count(it_tokens_3w) %>%
-  summarise(totaldei_by_year = n()) 
+  # count the number of times each article appears
+  count(article_num) %>%
+  # add the number of times the article appears for each year
+  summarise(totaldei_by_year = sum(n)) 
 
 # calculate the total amount of DEI related 3-word phrases for each ARTICLE
 total3deiarticle <- rios_data_tokenized3 %>%
+  # filter for words labeled as DEI related
   filter(dei_related == "TRUE") %>%
+  # group by article no. & year
   group_by(article_num, Year) %>%
-  count(it_tokens_3w) %>%
-  summarise(totaldei_by_article = n()) 
+  # count the number of times each article appears
+  count(article_num) 
 
 # calculate the total amount of 3-word phrases in each YEAR
-total3wordsyear <- rios_data_tokenized3 %>%
-  group_by(Year) %>%
-  count(it_tokens_3w, sort = TRUE)  %>%
-  summarise(total_by_year = n())
+total3wordsyear <- rios_data %>%
+  # split the text from the `inclusive teaching description` column into a three-token-per-row format
+  unnest_tokens(it_tokens_3w, `Inclusive Teaching Description`, token = "ngrams", n = 3)  %>%
+  # remove ~1,994 rows of punctuation and digits
+  filter(!str_detect(it_tokens_3w, paste(strings, collapse = "|"))) %>% 
+  # group by year
+  group_by(Year) %>% 
+  # count the total in each year
+  tally()
 
 # calculate the total amount of 3-word phrases in each ARTICLE
-total3wordsarticle <-  rios_data_tokenized3 %>%
-  group_by(article_num, Year) %>%
-  count(it_tokens_3w, sort = TRUE)  %>%
-  summarise(total_by_article = n())
-
+total3wordsarticle <- rios_data %>%
+  # split the text from the `inclusive teaching description` column into a three-token-per-row format
+  unnest_tokens(it_tokens_3w, `Inclusive Teaching Description`, token = "ngrams", n = 3)  %>%
+  # remove ~1,994 rows of punctuation and digits
+  filter(!str_detect(it_tokens_3w, paste(strings, collapse = "|"))) %>% 
+  # group by article no.
+  group_by(article_num) %>% 
+  # count the total in each article
+  tally()
   
 ```
 
 ## Box Plots {.tabset}
 
-Here's a box plot of the ratio of DEI related words, 2-word phrases and 3-word phrases by article over time with a table which goes more in depth of the statistics shown on the boxplot for each year. For some reason, the mean in 2015 is the highest across 1 word, 2-word and 3 phrases. The ratio increases as we move from 1 words to 3 words, however, there are smaller instances of phrases, which may be why the ratio is increasing. For example, for article number 16, there's only one 3-word phrase, which is labeled as DEI related, so the ratio is 100%. Nonetheless, the average ratio is slightly higher from the years 2019 to 2022 for 1 word (0.201 vs. 0.199), 2 word (0.253 vs. 0.234), and 3 word phrases (0.349 vs. 0.336).
+Here's a box plot of the ratio of DEI related words, 2-word phrases and 3-word phrases by article over time with a table which goes more in depth of the statistics shown on the boxplot for each year. For some reason, the mean in 2014 or 2015 is the highest across 1 word, 2-word and 3 phrases. However, the ratio shifts and decreases as we move from 1 words to 3 words. The average ratio is slightly higher from the years 2019 to 2022 for 1 word (0.135 vs. 0.134) and 2 word phrases (0.0745 vs. 0.0723).
 
 ### 1 word
 
 ```{r ratio boxplot and skim table}
 
-df1 <- totaldeiarticle %>%
-  full_join(totalwordsarticle, by = c("article_num", "Year")) %>%
-  # calculate the ratio of DEI "relatedness"
-  mutate(ratio = totaldei_by_article/total_by_article) %>%
+df1 <- rios_data %>%
+  select(4, 9, 11, 13, 14) %>%
+  # turn the ratio into a decimal
+  mutate(`DEI_Words_%` = `DEI_Words_%`/100) %>%
   group_by(Year)  %>% 
   rename("Article Number" = "article_num",
-         "Total DEI By Article" = "totaldei_by_article",
-         "Total By Article" = "total_by_article",
-         "DEI Ratio 1w" = "ratio")
+         "Total DEI By Article" = "DEI Word count",
+         "Total By Article" = "Word Count of Inclusive Teaching?",
+         "DEI Ratio 1w" = "DEI_Words_%")
 
 # create a function which creates a boxplot
 ratioboxplot <- function(){
@@ -1007,16 +1039,16 @@ ratioboxplot <- function(){
           horizontal = TRUE,  
           # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
           col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"), 
-          ylim = c(0,1))
+          ylim = c(0,0.28))
       
   # color and impose horizontal line of 2014 - 2018 group average ratio
-  abline(v = 0.199, col = "#b2df8a", lty = "solid", lwd = 3)
+  abline(v = 0.134, col = "#b2df8a", lty = "solid", lwd = 3)
     
   # color and impose horizontal line of 2019 - 2022 group average ratio
-  abline(v = 0.201, col = "#1f78b4",lty = "solid", lwd = 3)
+  abline(v = 0.135, col = "#1f78b4",lty = "solid", lwd = 3)
       
   # impose legend which explain horizontal lines
-  legend("topright", inset=.02, title="Average Ratio", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
+  legend("bottomleft", inset=.02, title="Average Ratio", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
 
   # unfactor years
   rios_data$Year <-  unfactor(rios_data$Year)
@@ -1062,16 +1094,18 @@ df1 %>%
 
 ### 2 word Phrases
 
+For article numbers 69 and 95, there aren't any DEI related 2-word phrases, which is why we're seeing 2 NA's in the table below.
+
 ```{r ratio boxplot and skim table for 2word}
 
 df2 <- total2deiarticle %>%
-  full_join(total2wordsarticle, by = c("article_num", "Year")) %>%
+  full_join(total2wordsarticle, by = c("article_num")) %>%
   # calculate the ratio of DEI "relatedness"
-  mutate(ratio = totaldei_by_article/total_by_article) %>%
+  mutate(ratio = n.x/n.y) %>%
   group_by(Year)  %>% 
   rename("Article Number" = "article_num",
-         "Total DEI By Article" = "totaldei_by_article",
-         "Total By Article" = "total_by_article",
+         "Total DEI By Article" = "n.x",
+         "Total By Article" = "n.y",
          "DEI Ratio 2w" = "ratio")
 
 
@@ -1089,13 +1123,13 @@ ratio2boxplot <- function(){
           horizontal = TRUE,  
           # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
           col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"), 
-          ylim = c(0,1))
+          ylim = c(0,0.28))
       
   # color and impose horizontal line of 2014 - 2018 group average ratio
-  abline(v = 0.234, col = "#b2df8a", lty = "solid", lwd = 3)
+  abline(v = 0.0723, col = "#b2df8a", lty = "solid", lwd = 3)
     
   # color and impose horizontal line of 2019 - 2022 group average ratio
-  abline(v = 0.253, col = "#1f78b4",lty = "solid", lwd = 3)
+  abline(v = 0.0745, col = "#1f78b4",lty = "solid", lwd = 3)
       
   # impose legend which explain horizontal lines
   legend("topright", inset=.02, title="Average Ratio", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
@@ -1144,16 +1178,18 @@ df2 %>%
 
 ### 3 word Phrases
 
+For article numbers 5, 59, 69, 95, 128, 140, 142, 219, and 247, there aren't any DEI related 3-word phrases, which is why we're seeing 9 NA's in the table below.
+
 ```{r ratio boxplot and skim table for 3word}
 
 df3 <- total3deiarticle %>%
-  full_join(total3wordsarticle, by = c("article_num", "Year")) %>%
+  full_join(total3wordsarticle, by = c("article_num")) %>%
   # calculate the ratio of DEI "relatedness"
-  mutate(ratio = totaldei_by_article/total_by_article) %>%
-  group_by(Year)  %>% 
+  mutate(ratio = n.x/n.y) %>%
+  group_by(Year)  %>%
   rename("Article Number" = "article_num",
-         "Total DEI By Article" = "totaldei_by_article",
-         "Total By Article" = "total_by_article",
+         "Total DEI By Article" = "n.x",
+         "Total By Article" = "n.y",
          "DEI Ratio 3w" = "ratio")
 
 
@@ -1171,13 +1207,13 @@ ratio3boxplot <- function(){
           horizontal = TRUE,  
           # color groups (color blind safe colors) based on the shift (2014-2018 and 2019-2022)
           col = c("#1f78b4", "#1f78b4", "#1f78b4", "#1f78b4", "#b2df8a","#b2df8a", "#b2df8a", "#b2df8a", "#b2df8a"), 
-          ylim = c(0,1))
+          ylim = c(0,0.28))
       
   # color and impose horizontal line of 2014 - 2018 group average ratio
-  abline(v = 0.336, col = "#b2df8a", lty = "solid", lwd = 3)
+  abline(v = 0.0512, col = "#b2df8a", lty = "solid", lwd = 3)
     
   # color and impose horizontal line of 2019 - 2022 group average ratio
-  abline(v = 0.349, col = "#1f78b4",lty = "solid", lwd = 3)
+  abline(v = 0.0480, col = "#1f78b4",lty = "solid", lwd = 3)
       
   # impose legend which explain horizontal lines
   legend("topright", inset=.02, title="Average Ratio", c("for 2014 - 2018","for 2019 - 2022"), fill=c("#b2df8a", "#1f78b4"), horiz=FALSE, cex=0.8)
@@ -1233,13 +1269,10 @@ Below are line graphs of what was presented above.
 
 ```{r Proportion of DEI Words 2, warning=FALSE, message=FALSE}
 
-# colorblind friendly palette with grey:
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
 df1 %>%
   ggplot(aes(`Article Number`, `DEI Ratio 1w`, colour = factor(Year))) +
   geom_line() +
-  ylim(0,1) +
+  ylim(0,0.28) +
   labs(y = "Ratio", title = "The Ratio of DEI Related Words By Article Number", subtitle = "(in the 'Inclusive Teaching' Section)", x = "Article Number") +
   geom_smooth(method=lm, se=FALSE) + 
   scale_discrete_manual(aesthetics = "colour", values = c("#40004b", "#762a83", "#9970ab", "#e7d4e8", "#d9f0d3", "#a6dba0", "#5aae61", "#1b7837", "#00441b"))
@@ -1252,7 +1285,7 @@ df1 %>%
 df2 %>%
   ggplot(aes(`Article Number`, `DEI Ratio 2w`, colour = factor(Year))) +
   geom_line() +
-  ylim(0,1) +
+  ylim(0,0.28) +
   labs(y = "Ratio", title = "The Ratio of DEI Related 2-Word Phrases By Article Number", subtitle = "(in the 'Inclusive Teaching' Section)", x = "Article Number") +
   geom_smooth(method=lm, se=FALSE) + 
   scale_discrete_manual(aesthetics = "colour", values = c("#40004b", "#762a83", "#9970ab", "#e7d4e8", "#d9f0d3", "#a6dba0", "#5aae61", "#1b7837", "#00441b"))
@@ -1266,7 +1299,7 @@ df2 %>%
 df3 %>%
   ggplot(aes(`Article Number`, `DEI Ratio 3w`, colour = factor(Year))) +
   geom_line() +
-  ylim(0,1) +
+  ylim(0,0.28) +
   labs(y = "Ratio", title = "The Ratio of DEI Related 3-Word Phrases By Article Number", subtitle = "(in the 'Inclusive Teaching' Section)", x = "Article Number") +
   geom_smooth(method=lm, se=FALSE) + 
   scale_discrete_manual(aesthetics = "colour", values = c("#40004b", "#762a83", "#9970ab", "#e7d4e8", "#d9f0d3", "#a6dba0", "#5aae61", "#1b7837", "#00441b"))
