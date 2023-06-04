@@ -248,25 +248,23 @@ rios_data %>%
 # test #p-value = 1.557e-10, confidence interval:  -126.37537  -68.78427, df = 254?!
 
 
-rios_data %>%  
-  group_by(`Attended Workshop?`) %>% 
-  summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), #calculating avg wrd count for each group
-            n = n(),
-            sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE))
-
-rios_data %>%  
+# create bar plot
+rios_data %>% 
   group_by(`Group Year`) %>% 
-  summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), #calculating avg wrd count for each group
+  # calculate avg. wrd ct, length, and standard deviation for each group year
+  summarise(Avg_Wrd_Ct = mean(`Word Count of Inclusive Teaching?`, na.rm = TRUE), 
             n = n(),
-            sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% #calculating standard deviation for each group (for confidence intervals) %>% 
-  mutate(se = sd/sqrt(n), #calculating the standard error
-         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% #calculating standard error * value of the t-distribution for 0.5
+            sd = sd(`Word Count of Inclusive Teaching?`, na.rm = TRUE)) %>% 
+  # calculate the standard error and  the standard error multiplied by the value of the t-distribution for 0.5
+  mutate(se = sd/sqrt(n), 
+         ic = se * qt((1-0.05)/2 + 0.5, n-1)) %>% 
   ggplot(aes(`Group Year`, Avg_Wrd_Ct, fill = `Group Year`)) +
   geom_col() + 
   labs(title = "Average Word Count of Inclusive Teaching Section", subtitle = "Before and After 2018", x = "Year", y = "Average Word Count") + 
-  scale_fill_manual(values = c("#1f78b4", "#b2df8a")) + #manually coloring groups (color blind safe colors) 
+  # manually color groups (color blind safe colors)
+  scale_fill_manual(values = c("#b2df8a", "#1f78b4")) + 
+  # create confidence intervals 
   geom_errorbar(aes(x = `Group Year`, ymin = Avg_Wrd_Ct - ic, ymax = Avg_Wrd_Ct + ic), width = 0.4)
-  
 
 
 # rios_data_tokenizedit %>% 

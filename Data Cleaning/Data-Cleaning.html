@@ -376,8 +376,10 @@ data set.</p>
 <div id="setupdata-cleaning" class="section level1">
 <h1>Setup/Data Cleaning</h1>
 <p>I import the necessary packages for analysis.</p>
-<pre class="r"><code># store string containing all required packages
-my_packages &lt;- c(&#39;varhandle&#39;, &#39;skimr&#39;, &#39;tidyverse&#39;, &#39;tidytext&#39;, &#39;stopwords&#39;, &quot;wordcloud&quot;, &quot;reshape2&quot;, &quot;ggraph&quot;, &quot;kableExtra&quot;,&#39;readr&#39;, &#39;dplyr&#39;, &quot;igraph&quot;,&quot;SnowballC&quot;, &quot;knitr&quot;)
+<pre class="r"><code># knitr::opts_chunks$set(warning = FALSE, message = FALSE)
+
+# store string containing all required packages
+my_packages &lt;- c(&#39;varhandle&#39;, &#39;skimr&#39;, &#39;tidyverse&#39;, &#39;tidytext&#39;, &#39;stopwords&#39;, &quot;wordcloud&quot;, &quot;reshape2&quot;, &quot;ggraph&quot;, &quot;kableExtra&quot;,&#39;readr&#39;, &#39;dplyr&#39;, &quot;igraph&quot;,&quot;SnowballC&quot;, &quot;knitr&quot;, &quot;git2rdata&quot;)
 
 # store all installed packages
 ya_installed &lt;- library()$results[,1]
@@ -386,9 +388,9 @@ ya_installed &lt;- library()$results[,1]
 need_install&lt;-my_packages[!(my_packages %in% ya_installed)]
 
 # install required packages
-lapply(need_install, install.packages, character.only = TRUE)</code></pre>
-<pre><code>## list()</code></pre>
-<pre class="r"><code>#similar process as above, but loading the packages
+lapply(need_install, install.packages, character.only = TRUE)
+
+#similar process as above, but loading the packages
 
 # store all installed packages
 ya_loaded &lt;- (.packages())
@@ -398,54 +400,12 @@ need_load&lt;-my_packages[!(my_packages %in% ya_loaded)]
 
 # load required packages
 lapply(need_load, require, character.only = TRUE)</code></pre>
-<pre><code>## [[1]]
-## [1] TRUE
-## 
-## [[2]]
-## [1] TRUE
-## 
-## [[3]]
-## [1] TRUE
-## 
-## [[4]]
-## [1] TRUE
-## 
-## [[5]]
-## [1] TRUE
-## 
-## [[6]]
-## [1] TRUE
-## 
-## [[7]]
-## [1] TRUE
-## 
-## [[8]]
-## [1] TRUE
-## 
-## [[9]]
-## [1] TRUE
-## 
-## [[10]]
-## [1] TRUE
-## 
-## [[11]]
-## [1] TRUE
-## 
-## [[12]]
-## [1] TRUE
-## 
-## [[13]]
-## [1] TRUE
-## 
-## [[14]]
-## [1] TRUE</code></pre>
-<pre class="r"><code>#knitr::opts_chunks$set(warning = FALSE, message = FALSE)</code></pre>
 <p>I import the dataset, as well as the JEDI keywords dataset.</p>
 <pre class="r"><code># import dataset from excel
-rios_data &lt;- read_csv(&quot;RIOS Research - Course Source - Sheet1 2.csv&quot;)
+rios_data &lt;- read_csv(&quot;https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Import/RIOS%20Research%20-%20Course%20Source%20-%20Sheet1%202.csv&quot;)
 
 # list of JEDI/DEI keywords given by research mentor Dr. Diaz Eaton; Used in another paper and will be used below to check for DEI related words in every section
-dei_keywords &lt;- read_csv(&quot;SJEDI_words 2022-12-20 18_03_42.csv&quot;)</code></pre>
+dei_keywords &lt;- read_csv(&quot;https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Import/SJEDI_words%202022-12-20%2018_03_42.csv&quot;)</code></pre>
 </div>
 <div id="data-manipulation" class="section level1">
 <h1>Data Manipulation</h1>
@@ -453,6 +413,13 @@ dei_keywords &lt;- read_csv(&quot;SJEDI_words 2022-12-20 18_03_42.csv&quot;)</co
 data set.</p>
 <pre class="r"><code># fix human error for one article
 rios_data$`Inclusive Teaching  included?`[12] = &quot;No&quot;
+
+# standardize &quot;yes&quot; in &#39;Inclusive Teaching  included?&#39; column
+rios_data &lt;- rios_data %&gt;% 
+  mutate(`Inclusive Teaching  included?` = case_when(
+    `Inclusive Teaching  included?` == &quot;yes&quot; | `Inclusive Teaching  included?` == &quot;Yes&quot; ~ &quot;Yes&quot;,
+    TRUE ~ &quot;No&quot;
+  ))
 
 # remove any article that that doesn&#39;t have an inclusive teaching section (30 articles)
 rios_data &lt;- rios_data %&gt;% 
@@ -472,19 +439,28 @@ rios_data &lt;- rios_data %&gt;%
     as.numeric(Year) &gt; 2018 ~ &quot;2019 - 2022&quot;
   )) 
 
+# replace NAs with &quot;No&quot; in &#39;Attended Workshop?&#39; column
+rios_data &lt;- rios_data %&gt;% 
+  mutate(`Attended Workshop?` = case_when(
+    `Attended Workshop?` == &quot;yes&quot; ~ &quot;Yes&quot;,
+    TRUE ~ &quot;No&quot;
+  )) 
+
 # remove unnecessary columns
-rios_data &lt;- rios_data[,-c(11:14)]</code></pre>
-<p>ASK YUHAO WHAT IS THIS DOING…</p>
-<pre class="r"><code># decapitalize all strings
+rios_data &lt;- rios_data[,-c(11:14)]
+
+# decapitalize all strings
 for (i in 1:length(rios_data$`Inclusive Teaching Description`)) {
   rios_data$`Inclusive Teaching Description`[i]&lt;-str_to_lower(rios_data$`Inclusive Teaching Description`[i])
 }
 
-# make replacing patterns and replace all
+# store a vector of strings that need to be replaced 
 rep_str&lt;-c(&quot;alt-text&quot;=&quot;alttext&quot;, &quot;co-&quot;=&quot;co&quot;, &quot;re-&quot;=&quot;re&quot;, &quot;de-&quot;=&quot;de&quot;, &quot;D/hh&quot;=&quot;dhh&quot;)
+
+#  replace strings that match the patterns above
 rios_data$`Inclusive Teaching Description`&lt;-str_replace_all(rios_data$`Inclusive Teaching Description`, rep_str)
 
-# remove all
+# remove all &quot;et&quot; 
 rios_data$`Inclusive Teaching Description`&lt;-str_remove_all(rios_data$`Inclusive Teaching Description`, &quot;et&quot;)</code></pre>
 </div>
 <div id="creating-tokenized-dataframe" class="section level1">
@@ -542,18 +518,11 @@ back into R. I repeat the process above, of creating a DEI related
 column, using this list. I also do some additional data
 manipulation.</p>
 <pre class="r"><code># import manually verified list of JEDI words and filter for JEDI words only
-JEDI_keywords_df &lt;- read_csv(&quot;cleanedITwords - cleanedITwords.csv&quot;) %&gt;% 
+JEDI_keywords_df &lt;- read_csv(&quot;https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Import/cleanedITwords%20-%20cleanedITwords.csv&quot;) %&gt;% 
   filter(Carrie == &quot;JEDI&quot;) %&gt;% 
-  select(1)</code></pre>
-<pre><code>## Rows: 4466 Columns: 4
-## ── Column specification ────────────────────────────────────────────────────────
-## Delimiter: &quot;,&quot;
-## chr (3): allwords, Carrie, 534
-## lgl (1): uniquedeirelated
-## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
-<pre class="r"><code># create a DEI related column
+  select(1)
+
+# create a DEI related column
 rios_data_tokenizedit$dei_relatedit = NA
 
 # check if the word is DEI related, if so, that row in the &#39;dei_related&#39; column will be TRUE
@@ -618,25 +587,11 @@ create a DEI related colum using this list.</p>
 # write_csv(all2words, &quot;2DEIRelated.csv&quot;)
 
 # import manually verified list of JEDI 2 word phrases and filter out words that aren&#39;t JEDI
-JEDI_2keywords_df &lt;- read_csv(&quot;cleanedIT2words.csv&quot;) %&gt;% 
+JEDI_2keywords_df &lt;- read_csv(&quot;https://raw.githubusercontent.com/smsokona/RIOS---CourseSource-Research/master/Data%20Cleaning/Data%20for%20Import/cleanedIT2words.csv&quot;) %&gt;% 
   filter(...3 == &quot;JEDI&quot;) %&gt;% 
-  select(1)</code></pre>
-<pre><code>## New names:
-## • `` -&gt; `...5`</code></pre>
-<pre><code>## Warning: One or more parsing issues, call `problems()` on your data frame for details,
-## e.g.:
-##   dat &lt;- vroom(...)
-##   problems(dat)</code></pre>
-<pre><code>## Rows: 3524 Columns: 5
-## ── Column specification ────────────────────────────────────────────────────────
-## Delimiter: &quot;,&quot;
-## chr (3): it_tokens_2w, ...3, 2453
-## dbl (1): n.x
-## lgl (1): ...5
-## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
-<pre class="r"><code># check if the phrase is DEI related, if so, that row in the &#39;dei_related&#39; column will be TRUE
+  select(1)
+
+# check if the phrase is DEI related, if so, that row in the &#39;dei_related&#39; column will be TRUE
 rios_data_token2it$dei_related &lt;- sapply(rios_data_token2it$it_tokens_2w, function(x) any(sapply(JEDI_2keywords_df, str_detect, string = x)))</code></pre>
 </div>
 <div id="creating-tokenized-dataframe-of-3-word-phrases" class="section level1">
@@ -672,24 +627,24 @@ rios_data_token3it$dei_related &lt;- sapply(rios_data_token3it$it_tokens_3w, fun
 <p>Below I save all of the cleaned data sets above as a csv in
 preparation for analysis.</p>
 <pre class="r"><code># original dataframe
-write_csv2(rios_data, &quot;/cloud/project/Sokona&#39;s Folder/Data Analysis/rios_data.csv&quot;) #CHANGE FOLDER PATH ON COMPUTER
+write_csv(rios_data, &quot;C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/rios_data.csv&quot;) 
 
 # tokenized dataframe
-write_csv2(rios_data_tokenizedit, &quot;/cloud/project/Sokona&#39;s Folder/Data Analysis/rios_data_tokenized.csv&quot;)
+write_csv(rios_data_tokenizedit, &quot;C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/rios_data_tokenized.csv&quot;)
 
 # tokenized dataframe for 2word phrases
-write_csv2(rios_data_token2it, &quot;/cloud/project/Sokona&#39;s Folder/Data Analysis/rios_data_tokenized2.csv&quot;)
+write_csv(rios_data_token2it, &quot;C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/rios_data_tokenized2.csv&quot;)
 
 # tokenized dataframe for 3word phrases
-write_csv2(rios_data_token3it, &quot;/cloud/project/Sokona&#39;s Folder/Data Analysis/rios_data_tokenized3.csv&quot;)
+write_csv(rios_data_token3it, &quot;C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/rios_data_tokenized3.csv&quot;)
 
 # table of DEI related word counts by year
-write_csv2(it_word_counts, &quot;/cloud/project/Sokona&#39;s Folder/Data Analysis/dei_word_counts.csv&quot;)
+write_csv(it_word_counts, &quot;C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/dei_word_counts.csv&quot;)
 
 
-# list of JEDI keywords list, just in case
-write_csv2(JEDI_keywords_df, &quot;/cloud/project/Sokona&#39;s Folder/Data Analysis/JEDIkeywords.csv&quot;)
-write_csv2(JEDI_2keywords_df, &quot;/cloud/project/Sokona&#39;s Folder/Data Analysis/JEDI2keywords.csv&quot;)</code></pre>
+# lists of JEDI keywords, just in case
+write_csv(JEDI_keywords_df, &quot;C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/JEDIkeywords.csv&quot;)
+write_csv(JEDI_2keywords_df, &quot;C:/Users/smangane/OneDrive - bates.edu/RIOS Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/JEDI2keywords.csv&quot;)</code></pre>
 </div>
 
 
