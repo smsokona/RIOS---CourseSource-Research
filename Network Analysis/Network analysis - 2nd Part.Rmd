@@ -1,0 +1,552 @@
+---
+title: "Inclusive Teaching Text Analysis - Part 2"
+author: "Yuhao Zhao"
+date: "2022-12-14"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Setup/Data Cleaning
+
+Here, I've imported the excel data set and necessary packages for analysis. I also did some data cleaning, created a vector of DEI related words and added some variables to the original excel data set.
+
+```{r keyboard shortcut}
+
+#cmd + shift + c to comment out code 
+#cmd + shift + M to print %>% pipe operator
+#cmd + return to run code 
+
+```
+
+```{r Selecting packages}
+# Store string containing all required packages
+my_packages <- c('varhandle', 'skimr', 'tidyverse', 'tidytext', 'stopwords', "wordcloud", "reshape2", "ggraph", "kableExtra",'readr', 'dplyr', "igraph","SnowballC")
+```
+
+Figure out which of these packages is already installed
+
+```{r Check package status}
+# Store all installed packages
+ya_installed <- library()$results[,1]
+# Check whether required packages are already installed and grab only those that still need installation
+need_install<-my_packages[!(my_packages %in% ya_installed)]
+#install required packages
+lapply(need_install, install.packages, character.only = TRUE)
+```
+
+Now, load only unloaded packages
+
+```{r Loading packages and data}
+# Store all installed packages
+ya_loaded <- (.packages())
+# Check whether required packages are already installed and grab only those that still need installation
+need_load<-my_packages[!(my_packages %in% ya_loaded)]
+# Load required packages
+lapply(need_load, require, character.only = TRUE)
+```
+
+
+
+
+## Network Plot of Word Relationship over Time {.tabset}
+
+To get a deeper understanding of how inclusive teaching is viewed, we will be creating a network plot to look at the relationship between words/phrases in the inclusive teaching section. The generated `igraph` graph is called `rios_phrase_network`. It has 41 words and 36 connections among them. Similar to what some of our graphs have portrayed above, the words "inclusive", "students", and "diverse" are connected to many other words.
+
+### Datasets perparation
+```{r}
+updated_DEI<- read_csv("/Users/zhaoyuhao/Desktop/College/Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/JEDIkeywords.csv")
+updated_2DEI <- as.data.frame(read_csv("/Users/zhaoyuhao/Desktop/College/Research/RIOS---CourseSource-Research/Data Cleaning/Data for Import/cleanedIT2words.csv", show_col_types = FALSE)[1:3])
+rios_data_token2it <- read_csv("/Users/zhaoyuhao/Desktop/College/Research/RIOS---CourseSource-Research/Data Cleaning/Data for Export/rios_data_tokenized2.csv")
+# seperate the two word pairs coloumn into two seperate ones and subsetting by verified lists
+rios_data_token2 <- rios_data_token2it %>% filter(it_tokens_2w %in% updated_2DEI$it_tokens_2w) %>% separate(it_tokens_2w, c("word1", "word2"), sep = " ") 
+
+```
+Notice that here we tried both original version and stemmed version of network plots and we pick the original verision still for paper output since there is no bigger differences to differentiate networks using stemmed words.
+
+For the paper's final visual outputs, we pick networks in year 2014, 2018, 2019, 2022 to reflect the stories so the code should be focused on those year sections. And the rest of the network objects are stored but the visualizations are not updated.
+
+### 2014
+
+```{r 2014}
+
+#extracting the edgelist(two-word pairs) and create a igraph object from it
+rios_2w_net_2014.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2014) %>%
+  count(word1, word2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2014.g)[V(rios_2w_net_2014.g)$name %in% updated_DEI$allwords]$shape<-"circle"
+V(rios_2w_net_2014.g)[!V(rios_2w_net_2014.g)$name %in% updated_DEI$allwords]$shape<- "square"
+
+V(rios_2w_net_2014.g)[sort(degree(rios_2w_net_2014.g), decreasing = TRUE, index.return=TRUE)$ix[1:5]]$color<-brewer.pal(7, "GnBu")[3:7]
+V(rios_2w_net_2014.g)[sort(degree(rios_2w_net_2014.g), decreasing = TRUE, index.return=TRUE)$ix[-c(1:5)]]$color<-"#a6cee3"
+
+#stemmed version
+rios_2w_net_2014_stemmed.g <- rios_data_token2 %>% 
+filter(dei_related == TRUE & Year == 2014) %>%
+mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+count(stem1, stem2, sort = TRUE) %>% 
+graph_from_data_frame()
+
+# V(rios_2w_net_2014_stemmed.g)[V(rios_2w_net_2014_stemmed.g)$name %in% updated_DEI$allwords]$shape<-"circle"
+# V(rios_2w_net_2014_stemmed.g)[!V(rios_2w_net_2014_stemmed.g)$name %in% updated_DEI$allwords]$shape<- "square"
+```
+
+
+```{r 2014-2}
+#Visualization
+set.seed(20181005)
+
+#original net
+png(file="2w2014.png",res=900, width=5000, height=5000, pointsize = 5)
+
+plot(rios_2w_net_2014.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2014.g)$n, vertex.size=log(degree(rios_2w_net_2014.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.5,vertex.label.font=2, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2014")
+
+legend(-0.9, 1.1, legend=c(V(rios_2w_net_2014.g)[sort(degree(rios_2w_net_2014.g), decreasing = TRUE, index.return=TRUE)$ix[1:5]]$name,"1DEI", "Others")  , col = c(brewer.pal(7, "GnBu")[3:7],"black", "black") , bty = "n", pch=c(19, 19, 19, 19, 19, 1, 0) , lty =c(0, 0, 0, 0, 0, 0, 0),  pt.cex = 1, cex = 1, text.col=c(brewer.pal(7, "GnBu")[3:7],"black", "black") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+
+# #stemmed net
+# png(file="2w2014_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# 
+# plot(rios_2w_net_2014_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2014_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2014_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2014")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+```
+
+### 2015
+
+```{r 2015}
+
+#create a igraph graph object
+rios_2w_net_2015.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2015) %>%
+  count(word1, word2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2015.g)[V(rios_2w_net_2015.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2015.g)[!V(rios_2w_net_2015.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+
+#stemmed version
+rios_2w_net_2015_stemmed.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2015) %>%
+  mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+  mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+  count(stem1, stem2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+# V(rios_2w_net_2015_stemmed.g)[V(rios_2w_net_2015_stemmed.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+# V(rios_2w_net_2015_stemmed.g)[!V(rios_2w_net_2015_stemmed.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+```
+
+
+```{r 2015-2}
+#Visualization
+set.seed(20181005)
+
+#original net
+png(file="2w2015.png",res=1000, width=10000, height=10000, pointsize = 9)
+
+plot(rios_2w_net_2015.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2015.g)$n, vertex.size=log(degree(rios_2w_net_2015.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2015")
+
+legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+# 
+# #stemmed version
+# png(file="2w2015_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# 
+# plot(rios_2w_net_2015_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2015_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2015_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2015")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+```
+
+
+### 2016
+
+
+```{r 2016}
+# rios_data_token2 <- rios_data_token2it %>%
+#   separate(it_tokens_2w, c("word1", "word2"), sep = " ")
+
+rios_2w_net_2016.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2016) %>%
+  count(word1, word2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2016.g)[V(rios_2w_net_2016.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2016.g)[!V(rios_2w_net_2016.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+
+#stemmed version
+rios_2w_net_2016_stemmed.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2016) %>%
+  mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+  mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+  count(stem1, stem2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2016_stemmed.g)[V(rios_2w_net_2016_stemmed.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2016_stemmed.g)[!V(rios_2w_net_2016_stemmed.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+```
+
+
+```{r 2016-2}
+set.seed(20181005)
+
+
+#original net
+png(file="2w2016.png",res=1000, width=10000, height=10000, pointsize = 9)
+
+plot(rios_2w_net_2016.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2016.g)$n, vertex.size=log(degree(rios_2w_net_2016.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2016")
+
+legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+
+# #stemmed net
+# png(file="2w2016_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# 
+# plot(rios_2w_net_2016_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2016_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2016_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2016")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+```
+
+### 2017
+
+```{r 2017}
+
+rios_2w_net_2017.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2017) %>%
+  count(word1, word2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2017.g)[V(rios_2w_net_2017.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2017.g)[!V(rios_2w_net_2017.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+
+#stemmed version
+rios_2w_net_2017_stemmed.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2017) %>%
+  mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+  mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+  count(stem1, stem2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2017_stemmed.g)[V(rios_2w_net_2017_stemmed.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2017_stemmed.g)[!V(rios_2w_net_2017_stemmed.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+```
+
+
+```{r 2017-2}
+set.seed(20181005)
+
+png(file="2w2017.png",res=1000, width=10000, height=10000, pointsize = 9)
+
+plot(rios_2w_net_2017.g, layout=layout_with_fr, edge.width =E(rios_2w_net_2017.g)$n, vertex.size=log(degree(rios_2w_net_2017.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2017")
+
+legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+
+# png(file="2w2017_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# 
+# plot(rios_2w_net_2017_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2017_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2017_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2017")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+```
+
+### 2018
+
+```{r 2018}
+
+rios_2w_net_2018.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2018) %>%
+  count(word1, word2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2018.g)[V(rios_2w_net_2018.g)$name %in% updated_DEI$allwords]$shape<-"circle"
+V(rios_2w_net_2018.g)[!V(rios_2w_net_2018.g)$name %in% updated_DEI$allwords]$shape<- "square"
+
+V(rios_2w_net_2018.g)[sort(degree(rios_2w_net_2018.g), decreasing = TRUE, index.return=TRUE)$ix[1:5]]$color<-brewer.pal(7, "GnBu")[3:7]
+V(rios_2w_net_2018.g)[sort(degree(rios_2w_net_2018.g), decreasing = TRUE, index.return=TRUE)$ix[-c(1:5)]]$color<-"#a6cee3"
+
+
+
+#stemmed version
+rios_2w_net_2018_stemmed.g <- rios_data_token2 %>% 
+filter(dei_related == TRUE & Year == 2018) %>%
+mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+count(stem1, stem2, sort = TRUE) %>% 
+graph_from_data_frame()
+
+# V(rios_2w_net_2018_stemmed.g)[V(rios_2w_net_2018_stemmed.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+# V(rios_2w_net_2018_stemmed.g)[!V(rios_2w_net_2018_stemmed.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+```
+
+
+```{r 2018-2}
+set.seed(20181005)
+
+png(file="2w2018.png",res=900, width=5000, height=5000, pointsize = 5)
+
+plot(rios_2w_net_2018.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2018.g)$n, vertex.size=log(degree(rios_2w_net_2018.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.5, vertex.label.font=2, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2018")
+
+legend(-0.9, 1.1, legend=c(V(rios_2w_net_2018.g)[sort(degree(rios_2w_net_2018.g), decreasing = TRUE, index.return=TRUE)$ix[1:5]]$name,"1DEI", "Others")  , col = c(brewer.pal(7, "GnBu")[3:7],"black", "black") , bty = "n", pch=c(19, 19, 19, 19, 19, 1, 0) , lty =c(0, 0, 0, 0, 0, 0, 0),  pt.cex = 1, cex = 1, text.col=c(brewer.pal(7, "GnBu")[3:7],"black", "black") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+
+# 
+# png(file="2w2018_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# 
+# plot(rios_2w_net_2018_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2018_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2018_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2018")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+```
+
+### 2019
+
+```{r 2019}
+
+rios_2w_net_2019.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2019) %>%
+  count(word1, word2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2019.g)[V(rios_2w_net_2019.g)$name %in% updated_DEI$allwords]$shape<-"circle"
+V(rios_2w_net_2019.g)[!V(rios_2w_net_2019.g)$name %in% updated_DEI$allwords]$shape<- "square"
+
+V(rios_2w_net_2019.g)[sort(degree(rios_2w_net_2019.g), decreasing = TRUE, index.return=TRUE)$ix[1:5]]$color<-brewer.pal(7, "GnBu")[3:7]
+V(rios_2w_net_2019.g)[sort(degree(rios_2w_net_2019.g), decreasing = TRUE, index.return=TRUE)$ix[-c(1:5)]]$color<-"#a6cee3"
+
+#stemmed version
+rios_2w_net_2019_stemmed.g <- rios_data_token2 %>% 
+filter(dei_related == TRUE & Year == 2019) %>%
+mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+count(stem1, stem2, sort = TRUE) %>% 
+graph_from_data_frame()
+
+#V(rios_2w_net_2019_stemmed.g)[V(rios_2w_net_2019_stemmed.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+#V(rios_2w_net_2019_stemmed.g)[!V(rios_2w_net_2019_stemmed.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+
+```
+
+
+```{r 2019-2}
+set.seed(20181005)
+
+#original net
+png(file="2w2019.png",res=900, width=5000, height=5000, pointsize = 5)
+
+plot(rios_2w_net_2019.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2019.g)$n, vertex.size=log(degree(rios_2w_net_2019.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.5, vertex.label.font=2, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2019")
+
+
+legend(-0.95, 1, legend=c(V(rios_2w_net_2019.g)[sort(degree(rios_2w_net_2019.g), decreasing = TRUE, index.return=TRUE)$ix[1:5]]$name,"1DEI", "Others")  , col = c(brewer.pal(7, "GnBu")[3:7],"black", "black") , bty = "n", pch=c(19, 19, 19, 19, 19, 1, 0) , lty =c(0, 0, 0, 0, 0, 0, 0),  pt.cex = 1, cex = 1, text.col=c(brewer.pal(7, "GnBu")[3:7],"black", "black") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+# 
+# #stemmed version
+# png(file="2w2019_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# plot(rios_2w_net_2019_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2019_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2019_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2019")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+
+```
+
+
+### 2020
+
+```{r 2020}
+rios_2w_net_2020.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2020) %>%
+  count(word1, word2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2020.g)[V(rios_2w_net_2020.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2020.g)[!V(rios_2w_net_2020.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+
+#stemmed version
+rios_2w_net_2020_stemmed.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2020) %>%
+  mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+  mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+  count(stem1, stem2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2020_stemmed.g)[V(rios_2w_net_2020_stemmed.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2020_stemmed.g)[!V(rios_2w_net_2020_stemmed.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+```
+
+
+```{r 2020-2}
+set.seed(20181005)
+
+#original net
+png(file="2w2020.png",res=1000, width=10000, height=10000, pointsize = 9)
+
+plot(rios_2w_net_2020.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2020.g)$n*2, vertex.size=log(degree(rios_2w_net_2020.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2020")
+
+legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+
+# png(file="2w2020_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# 
+# plot(rios_2w_net_2020_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2020_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2020_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2020")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+```
+
+### 2021
+
+```{r 2021}
+rios_2w_net_2021.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2021) %>%
+  count(word1, word2, sort = TRUE) %>%  
+  graph_from_data_frame()
+
+V(rios_2w_net_2021.g)[V(rios_2w_net_2021.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2021.g)[!V(rios_2w_net_2021.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+
+#stemmed version
+rios_2w_net_2021_stemmed.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2021) %>%
+  mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+  mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+  count(stem1, stem2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2021_stemmed.g)[V(rios_2w_net_2021_stemmed.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+V(rios_2w_net_2021_stemmed.g)[!V(rios_2w_net_2021_stemmed.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+```
+
+
+```{r 2021-2}
+set.seed(20181005)
+
+
+#original net
+png(file="2w2021.png",res=1000, width=10000, height=10000, pointsize = 9)
+
+plot(rios_2w_net_2021.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2021.g)$n, vertex.size=log(degree(rios_2w_net_2021.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2021")
+
+legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+
+#stemmed version
+# png(file="2w2021_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# 
+# plot(rios_2w_net_2021_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2021_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2021_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2021")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+```
+
+### 2022
+
+```{r 2022}
+rios_2w_net_2022.g <- rios_data_token2 %>% 
+  filter(dei_related == TRUE & Year == 2022) %>%
+  count(word1, word2, sort = TRUE) %>% 
+  graph_from_data_frame()
+
+V(rios_2w_net_2022.g)[V(rios_2w_net_2022.g)$name %in% updated_DEI$allwords]$shape<-"circle"
+V(rios_2w_net_2022.g)[!V(rios_2w_net_2022.g)$name %in% updated_DEI$allwords]$shape<- "square"
+
+V(rios_2w_net_2022.g)[sort(degree(rios_2w_net_2022.g), decreasing = TRUE, index.return=TRUE)$ix[1:5]]$color<-brewer.pal(7, "GnBu")[3:7]
+V(rios_2w_net_2022.g)[sort(degree(rios_2w_net_2022.g), decreasing = TRUE, index.return=TRUE)$ix[-c(1:5)]]$color<-"#a6cee3"
+#stemmed version
+rios_2w_net_2022_stemmed.g <- rios_data_token2 %>% 
+filter(dei_related == TRUE & Year == 2022) %>%
+mutate(stem1 = wordStem(`word1`, language = "en")) %>%
+mutate(stem2 = wordStem(`word2`, language = "en")) %>%
+count(stem1, stem2, sort = TRUE) %>% 
+graph_from_data_frame()
+
+#V(rios_2w_net_2022_stemmed.g)[V(rios_2w_net_2022_stemmed.g)$name %in% updated_DEI$allwords]$color<-"#1f78b4"
+#V(rios_2w_net_2022_stemmed.g)[!V(rios_2w_net_2022_stemmed.g)$name %in% updated_DEI$allwords]$color<- "#a6cee3"
+```
+
+
+```{r 2022-2}
+set.seed(20181005)
+
+
+png(file="2w2022.png",res=900, width=5000, height=5000, pointsize = 5)
+
+plot(rios_2w_net_2022.g, layout=layout_with_kk, edge.width =E(rios_2w_net_2022.g)$n, vertex.size=log(degree(rios_2w_net_2022.g)),vertex.label.degree=-pi/2,
+vertex.label.dist=0.2,vertex.label.cex=0.5, vertex.label.font=2, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) Word Relationship in 2022")
+
+legend(-0.95, 1, legend=c(V(rios_2w_net_2022.g)[sort(degree(rios_2w_net_2022.g), decreasing = TRUE, index.return=TRUE)$ix[1:5]]$name,"1DEI", "Others")  , col = c(brewer.pal(7, "GnBu")[3:7],"black", "black") , bty = "n", pch=c(19, 19, 19, 19, 19, 1, 0) , lty =c(0, 0, 0, 0, 0, 0, 0),  pt.cex = 1, cex = 1, text.col=c(brewer.pal(7, "GnBu")[3:7],"black", "black") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+dev.off()
+
+# png(file="2w2022_stemmed.png",res=1000, width=10000, height=10000, pointsize = 9)
+# 
+# plot(rios_2w_net_2022_stemmed.g,layout=layout_with_kk, edge.width =E(rios_2w_net_2022_stemmed.g)$n, vertex.size=log(degree(rios_2w_net_2022_stemmed.g)),vertex.label.degree=-pi/2,
+# vertex.label.dist=0.2,vertex.label.cex=0.3, edge.arrow.size=0.3, edge.arrow.width=0.2, main="Network of (DEI Related) stemmed Word Relationship in 2022")
+# 
+# legend(0.95, 1, legend=c("2DEI","1DEI")  , col = c("#a6cee3", "#1f78b4") , bty = "n", pch=c(20, 20) , lty =c(0, 0),  pt.cex = 2, cex = 1, text.col=c("#a6cee3", "#1f78b4") ,xjust = 0, yjust = 1, x.intersp = 1, y.intersp = 1,adj = c(0, 0.5), horiz = FALSE)
+# dev.off()
+```
+
+
+### Statistical measure summary
+
+#### create a graph list
+```{r}
+
+graph_list<-list(rios_2w_net_2014.g, rios_2w_net_2014_stemmed.g, rios_2w_net_2015.g, rios_2w_net_2015_stemmed.g, rios_2w_net_2016.g, rios_2w_net_2016_stemmed.g, rios_2w_net_2017.g, rios_2w_net_2017_stemmed.g, rios_2w_net_2018.g, rios_2w_net_2018_stemmed.g, rios_2w_net_2019.g, rios_2w_net_2019_stemmed.g, rios_2w_net_2020.g, rios_2w_net_2020_stemmed.g, rios_2w_net_2021.g, rios_2w_net_2021_stemmed.g, rios_2w_net_2022.g, rios_2w_net_2022_stemmed.g)
+```
+
+```{r}
+#network size
+sizes<-sapply(graph_list, gorder)
+   
+#edge density
+
+conns<-sapply(graph_list, edge_density)
+
+#Diameter
+
+diameters<-sapply(graph_list, diameter)
+
+#clustering coefficient
+
+ccoeffs<-sapply(graph_list, transitivity)
+
+#components
+n_comps<-sapply(graph_list, count_components)
+
+#max component size
+max_comp_size<-sapply(sapply(graph_list, components)[2, ], max)
+
+#Summary stats for networks across years
+summ_df_new<-rbind(sizes, conns, diameters, ccoeffs, n_comps, max_comp_size)
+
+colnames(summ_df_new)<-c("2014", "2014st", "2015", "2015st", "2016", "2016st", "2017", "2017st", "2018", "2018st", "2019", "2019st", "2020", "2020st", "2021", "2021st", "2022", "2022st")
+summ_df_new<-t(summ_df_new)
+
+summ_df_new
+```
